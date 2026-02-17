@@ -58,7 +58,7 @@ def get_latest_results(df_eleve):
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     try:
-        df = conn.read(worksheet="Resultats", ttl=0)
+        df = conn.read(worksheet="Data", ttl=0)
         
         # Si le fichier est vide ou ne contient que les entêtes
         if df.empty:
@@ -82,21 +82,23 @@ def load_data():
         return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
 
 def save_data(df):
+    # On se connecte
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # 1. Copie de sécurité
+    # 1. On copie et on nettoie
     df_to_save = df.copy()
-    
-    # 2. On remplit les vides et on force tout en texte
     df_to_save = df_to_save.fillna("")
     df_to_save = df_to_save.astype(str)
     
-    # 3. CRITIQUE : On s'assure qu'il n'y a pas d'index parasite
-    # (Parfois Python essaie d'écrire le numéro de ligne 0, 1, 2... et Google bloque)
-    df_to_save = df_to_save.reset_index(drop=True)
+    # 2. FORCE BRUTE : On renomme les colonnes manuellement
+    # Cela garantit que Python a EXACTEMENT les mêmes noms que Google
+    df_to_save.columns = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"]
     
-    # 4. On écrit
-    conn.update(worksheet="Resultats", data=df_to_save)
+    # 3. On envoie vers la NOUVELLE feuille "Data"
+    # Attention : j'ai changé "Resultats" par "Data" ici
+    conn.update(worksheet="Data", data=df_to_save)
+    
+    # 4. On vide le cache
     st.cache_data.clear()
 
 # --- CLASSE PDF ---
@@ -463,5 +465,6 @@ else:
                 save_data(df)
                 st.success("Supprimé !")
                 st.rerun()
+
 
 

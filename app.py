@@ -83,13 +83,19 @@ def load_data():
 
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
+    
+    # 1. On travaille sur une copie pour ne pas casser l'affichage
     df_to_save = df.copy()
     
-    # CORRECTION IMPORTANTE :
-    # On convertit la date en chaîne de caractères simple (AAAA-MM-JJ)
-    # Cela évite d'envoyer des objets Timestamp ou des heures "00:00:00" qui bloquent Google Sheets
-    df_to_save['Date_Epreuve'] = df_to_save['Date_Epreuve'].apply(lambda x: str(x)[:10] if pd.notnull(x) else "")
+    # 2. NETTOYAGE ABSOLU (C'est ça qui manquait !)
+    # On remplit TOUTES les cases vides par du vide "" (sinon ça plante)
+    df_to_save = df_to_save.fillna("")
     
+    # 3. On force tout en texte (String) pour éviter les erreurs de format nombre/date
+    # Cela garantit que Google accepte les données sans réfléchir
+    df_to_save = df_to_save.astype(str)
+    
+    # 4. Envoi
     conn.update(worksheet="Resultats", data=df_to_save)
     st.cache_data.clear()
 
@@ -457,3 +463,4 @@ else:
                 save_data(df)
                 st.success("Supprimé !")
                 st.rerun()
+

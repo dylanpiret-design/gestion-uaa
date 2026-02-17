@@ -84,18 +84,18 @@ def load_data():
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # 1. On travaille sur une copie pour ne pas casser l'affichage
+    # 1. Copie de sécurité
     df_to_save = df.copy()
     
-    # 2. NETTOYAGE ABSOLU (C'est ça qui manquait !)
-    # On remplit TOUTES les cases vides par du vide "" (sinon ça plante)
+    # 2. On remplit les vides et on force tout en texte
     df_to_save = df_to_save.fillna("")
-    
-    # 3. On force tout en texte (String) pour éviter les erreurs de format nombre/date
-    # Cela garantit que Google accepte les données sans réfléchir
     df_to_save = df_to_save.astype(str)
     
-    # 4. Envoi
+    # 3. CRITIQUE : On s'assure qu'il n'y a pas d'index parasite
+    # (Parfois Python essaie d'écrire le numéro de ligne 0, 1, 2... et Google bloque)
+    df_to_save = df_to_save.reset_index(drop=True)
+    
+    # 4. On écrit
     conn.update(worksheet="Resultats", data=df_to_save)
     st.cache_data.clear()
 
@@ -463,4 +463,5 @@ else:
                 save_data(df)
                 st.success("Supprimé !")
                 st.rerun()
+
 

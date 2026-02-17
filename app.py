@@ -47,30 +47,49 @@ def get_latest_results(df_eleve):
     if df_eleve.empty:
         return df_eleve
     df_eleve = df_eleve.copy()
-    df_eleve['Date_Epreuve'] = pd.to_datetime(df_eleve['Date_Epreuve'])
+    # On assure que c'est bien une date pour le tri
+    df_eleve['Date_Epreuve'] = pd.to_datetime(df_eleve['Date_Epreuve'], errors='coerce')
     df_sorted = df_eleve.sort_values(by="Date_Epreuve", ascending=False)
     df_latest = df_sorted.drop_duplicates(subset=["Code_UAA"], keep="first")
     return df_latest.sort_values(by="Code_UAA")
 
-# --- GESTION DES DONNÉES GOOGLE SHEETS ---
+# --- GESTION DES DONNÉES GOOGLE SHEETS (CORRIGÉE) ---
 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     try:
         df = conn.read(worksheet="Resultats", ttl=0)
+        
+        # Si le fichier est vide ou ne contient que les entêtes
         if df.empty:
              return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
-        df['Date_Epreuve'] = pd.to_datetime(df['Date_Epreuve'])
+        
+        # 1. On supprime les lignes totalement vides (les "fantômes" d'Excel)
+        df = df.dropna(how="all")
+        
+        # 2. Conversion robuste de la date (erreurs='coerce' évite le crash si une date est mal écrite)
+        df['Date_Epreuve'] = pd.to_datetime(df['Date_Epreuve'], errors='coerce')
+        
+        # 3. Gestion du Statut par défaut
         if 'Statut' not in df.columns:
             df['Statut'] = 'Actif'
+        else:
+            df['Statut'] = df['Statut'].fillna('Actif')
+            
         return df
     except Exception:
+        # En cas de gros problème de connexion, on renvoie un DF vide pour ne pas crasher l'app
         return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
 
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
     df_to_save = df.copy()
-    df_to_save['Date_Epreuve'] = df_to_save['Date_Epreuve'].astype(str)
+    
+    # CORRECTION IMPORTANTE :
+    # On convertit la date en chaîne de caractères simple (AAAA-MM-JJ)
+    # Cela évite d'envoyer des objets Timestamp ou des heures "00:00:00" qui bloquent Google Sheets
+    df_to_save['Date_Epreuve'] = df_to_save['Date_Epreuve'].apply(lambda x: str(x)[:10] if pd.notnull(x) else "")
+    
     conn.update(worksheet="Resultats", data=df_to_save)
     st.cache_data.clear()
 

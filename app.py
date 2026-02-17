@@ -82,24 +82,31 @@ def load_data():
         return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
 
 def save_data(df):
-    # On se connecte
     conn = st.connection("gsheets", type=GSheetsConnection)
     
-    # 1. On copie et on nettoie
+    # 1. Copie de sécurité
     df_to_save = df.copy()
+    
+    # 2. On s'assure que TOUTES les colonnes existent, même si vides
+    colonnes_obligatoires = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"]
+    for col in colonnes_obligatoires:
+        if col not in df_to_save.columns:
+            df_to_save[col] = ""
+
+    # 3. On ne garde QUE ces colonnes, dans le BON ordre
+    df_to_save = df_to_save[colonnes_obligatoires]
+    
+    # 4. Nettoyage final (Remplir les vides, tout en texte)
     df_to_save = df_to_save.fillna("")
     df_to_save = df_to_save.astype(str)
     
-    # 2. FORCE BRUTE : On renomme les colonnes manuellement
-    # Cela garantit que Python a EXACTEMENT les mêmes noms que Google
-    df_to_save.columns = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"]
-    
-    # 3. On envoie vers la NOUVELLE feuille "Data"
-    # Attention : j'ai changé "Resultats" par "Data" ici
-    conn.update(worksheet="Data", data=df_to_save)
-    
-    # 4. On vide le cache
-    st.cache_data.clear()
+    # 5. On envoie vers l'onglet "Data"
+    try:
+        conn.update(worksheet="Data", data=df_to_save)
+        st.cache_data.clear()
+    except Exception as e:
+        st.error(f"Erreur d'écriture Google Sheets : {e}")
+        st.stop()
 
 # --- CLASSE PDF ---
 class PDF(FPDF):
@@ -465,6 +472,7 @@ else:
                 save_data(df)
                 st.success("Supprimé !")
                 st.rerun()
+
 
 
 

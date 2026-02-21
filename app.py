@@ -365,59 +365,65 @@ else:
 
         st.divider()
 
-        with st.form("form_encodage", clear_on_submit=False):
-            c1, c2 = st.columns(2)
-            classe = c1.selectbox("Année", list(PROGRAMME.keys()))
-            codes_uaa = list(PROGRAMME[classe].keys())
-            code_choisi = c2.selectbox("UAA", codes_uaa)
-            desc = PROGRAMME[classe][code_choisi]
-            st.info(f"**Compétence visée :** {desc}")
+        c1, c2 = st.columns(2)
+        classe = c1.selectbox("Année", list(PROGRAMME.keys()))
+        codes_uaa = list(PROGRAMME[classe].keys())
+        code_choisi = c2.selectbox("UAA", codes_uaa)
+        desc = PROGRAMME[classe][code_choisi]
+        st.info(f"**Compétence visée :** {desc}")
 
+        # --- VÉRIFICATION DYNAMIQUE (AVANT ENCODAGE) ---
+        deja_reussi = False
+        date_reussite_str = ""
+        
+        if mode_eleve == "Existant" and nom_eleve and not df.empty:
+            mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite", na=False))
+            df_deja = df[mask]
+            if not df_deja.empty:
+                deja_reussi = True
+                try:
+                    date_reussite_str = pd.to_datetime(df_deja.iloc[0]["Date_Epreuve"]).strftime('%d/%m/%Y')
+                except:
+                    date_reussite_str = str(df_deja.iloc[0]["Date_Epreuve"])[:10]
+
+        # Si déjà réussi, on bloque l'interface
+        if deja_reussi:
+            st.error(f"🔒 Action bloquée : **{nom_eleve}** a déjà validé l'**{code_choisi}** le {date_reussite_str}. Nouvel encodage impossible.")
+        else:
             c3, c4 = st.columns(2)
             date_ep = c3.date_input("Date de l'épreuve", datetime.today())
             res = c4.radio("Résultat obtenu", ["Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
 
-            submitted = st.form_submit_button("💾 Sauvegarder le résultat", type="primary")
-
-            if submitted:
+            if st.button("💾 Sauvegarder le résultat", type="primary"):
                 if not nom_eleve:
                     st.error("❌ Oups ! Veuillez renseigner le nom de l'élève avant de sauvegarder.")
                 elif not date_ep:
                     st.error("❌ Oups ! Veuillez définir une date valide.")
                 else:
-                    deja_reussi = False
-                    if mode_eleve == "Existant" and not df.empty:
-                        mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite"))
-                        if not df[mask].empty:
-                            deja_reussi = True
-
-                    if deja_reussi:
-                        st.error(f"🔒 L'élève **{nom_eleve}** a déjà validé cette UAA. Enregistrement annulé.")
+                    date_to_save = pd.to_datetime(date_ep)
+                    new_row = {
+                        "Nom_Prenom": nom_eleve, 
+                        "Classe": classe, 
+                        "Code_UAA": code_choisi, 
+                        "Description_UAA": desc, 
+                        "Date_Epreuve": date_to_save, 
+                        "Resultat": res,
+                        "Statut": "Actif"
+                    }
+                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                    save_data(df)
+                    
+                    st.toast('✅ Encodage enregistré avec succès !')
+                    
+                    reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
+                    if reussites_eleve["Code_UAA"].nunique() >= 6:
+                        st.balloons()
+                        st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
+                        time.sleep(3)
                     else:
-                        date_to_save = pd.to_datetime(date_ep)
-                        new_row = {
-                            "Nom_Prenom": nom_eleve, 
-                            "Classe": classe, 
-                            "Code_UAA": code_choisi, 
-                            "Description_UAA": desc, 
-                            "Date_Epreuve": date_to_save, 
-                            "Resultat": res,
-                            "Statut": "Actif"
-                        }
-                        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                        save_data(df)
-                        
-                        st.toast('✅ Encodage enregistré avec succès !')
-                        
-                        reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
-                        if reussites_eleve["Code_UAA"].nunique() >= 6:
-                            st.balloons()
-                            st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
-                            time.sleep(3)
-                        else:
-                            st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
-                            time.sleep(1)
-                        st.rerun()
+                        st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
+                        time.sleep(1)
+                    st.rerun()
 
     # ==========================================
     # PAGE 2 : DASHBOARD

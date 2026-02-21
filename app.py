@@ -9,7 +9,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 import unicodedata
 import time
-import plotly.express as px  # NOUVEAU : Pour les graphiques
+import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
@@ -54,7 +54,6 @@ def get_latest_results(df_eleve):
     df_latest = df_sorted.drop_duplicates(subset=["Code_UAA"], keep="first")
     return df_latest.sort_values(by="Code_UAA")
 
-# NOUVEAU : Fonction pour colorer le tableau de bord
 def colorer_lignes(row):
     if 'Réussite' in str(row['Resultat']):
         return ['background-color: #d4edda; color: #155724'] * len(row)
@@ -309,9 +308,10 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
+    st.image(LOGO_PATH, width=100) # Modification ici : Retrait du try/except
     st.title("🔒 Connexion")
-    pwd = st.text_input("Mot de passe", type="password")
-    if st.button("Se connecter"):
+    pwd = st.text_input("Mot de passe", type="password", key="login_pwd")
+    if st.button("Se connecter", key="login_btn"):
         try:
             secret_pwd = st.secrets["general"]["MOT_DE_PASSE_APP"]
         except:
@@ -323,8 +323,11 @@ if not st.session_state.authenticated:
         else:
             st.error("Mot de passe incorrect")
 else:
+    st.sidebar.image(LOGO_PATH, use_container_width=True) # Modification ici : Retrait du try/except
+    st.sidebar.divider()
+
     st.sidebar.title("Menu")
-    if st.sidebar.button("Se déconnecter"):
+    if st.sidebar.button("Se déconnecter", key="logout_btn"):
         st.session_state.authenticated = False
         st.rerun()
 
@@ -338,26 +341,24 @@ else:
     tab1, tab2, tab3, tab4 = st.tabs(["📝 Encodage", "📊 Dashboard", "📧 Bulletins", "⚙️ Admin"])
 
     # ==========================================
-    # ONGLET 1 : ENCODAGE (AVEC FORM & VALIDATION)
+    # ONGLET 1 : ENCODAGE
     # ==========================================
     with tab1:
         st.subheader("Nouvel encodage")
         
-        # Sélection du mode hors du formulaire pour MAJ dynamique
-        mode_eleve = st.radio("Élève :", ["Existant", "Nouveau"], horizontal=True)
+        mode_eleve = st.radio("Élève :", ["Existant", "Nouveau"], horizontal=True, key="mode_eleve_radio")
         nom_eleve = ""
         
         if mode_eleve == "Existant":
             if existing_students:
-                nom_eleve = st.selectbox("Choisir l'élève", existing_students, key="select_exist")
+                nom_eleve = st.selectbox("Choisir l'élève", existing_students, key="select_exist_t1")
             else:
                 st.warning("Aucun élève actif.")
         else:
-            nom_eleve = st.text_input("Nom du nouvel élève (Prénom Nom)", key="input_new").strip()
+            nom_eleve = st.text_input("Nom du nouvel élève (Prénom Nom)", key="input_new_t1").strip()
 
         st.divider()
 
-        # FORMULAIRE
         with st.form("form_encodage", clear_on_submit=False):
             c1, c2 = st.columns(2)
             classe = c1.selectbox("Année", list(PROGRAMME.keys()))
@@ -373,13 +374,11 @@ else:
             submitted = st.form_submit_button("💾 Sauvegarder le résultat", type="primary")
 
             if submitted:
-                # Validation des données
                 if not nom_eleve:
                     st.error("❌ Oups ! Veuillez renseigner le nom de l'élève avant de sauvegarder.")
                 elif not date_ep:
                     st.error("❌ Oups ! Veuillez définir une date valide.")
                 else:
-                    # Vérification si l'UAA est déjà acquise
                     deja_reussi = False
                     if mode_eleve == "Existant" and not df.empty:
                         mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite"))
@@ -389,7 +388,6 @@ else:
                     if deja_reussi:
                         st.error(f"🔒 L'élève **{nom_eleve}** a déjà validé cette UAA. Enregistrement annulé.")
                     else:
-                        # Sauvegarde
                         date_to_save = pd.to_datetime(date_ep)
                         new_row = {
                             "Nom_Prenom": nom_eleve, 
@@ -403,7 +401,6 @@ else:
                         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                         save_data(df)
                         
-                        # Retours visuels
                         st.toast('✅ Encodage enregistré avec succès !')
                         
                         reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
@@ -417,7 +414,7 @@ else:
                         st.rerun()
 
     # ==========================================
-    # ONGLET 2 : DASHBOARD (NOUVEAU)
+    # ONGLET 2 : DASHBOARD
     # ==========================================
     with tab2:
         st.subheader("📊 Tableau de Bord & Données")
@@ -425,18 +422,16 @@ else:
         if df_actifs.empty:
             st.info("Aucune donnée enregistrée pour le moment.")
         else:
-            # Filtres
             col_f1, col_f2 = st.columns(2)
             classes_uniques = df_actifs["Classe"].unique().tolist()
-            filtre_classe = col_f1.multiselect("Filtrer par Classe", classes_uniques, default=classes_uniques)
-            filtre_eleve = col_f2.multiselect("Filtrer par Élève", existing_students, default=[])
+            # Ajout des keys ici pour éviter la perte d'onglet
+            filtre_classe = col_f1.multiselect("Filtrer par Classe", classes_uniques, default=classes_uniques, key="dash_f_classe")
+            filtre_eleve = col_f2.multiselect("Filtrer par Élève", existing_students, default=[], key="dash_f_eleve")
 
-            # Application des filtres
             df_filtered = df_actifs[df_actifs["Classe"].isin(filtre_classe)]
             if filtre_eleve:
                 df_filtered = df_filtered[df_filtered["Nom_Prenom"].isin(filtre_eleve)]
 
-            # KPIs
             nb_eleves = df_filtered["Nom_Prenom"].nunique()
             total_eval = len(df_filtered)
             reussites = len(df_filtered[df_filtered["Resultat"].str.contains("Réussite")])
@@ -449,19 +444,17 @@ else:
 
             st.divider()
 
-            # Graphiques
             c_chart1, c_chart2 = st.columns(2)
             
             with c_chart1:
                 st.markdown("**Répartition des Résultats**")
-                # Création d'une colonne simplifiée pour le camembert
                 df_filtered["Resultat_Court"] = df_filtered["Resultat"].apply(lambda x: "Acquis" if "Réussite" in str(x) else "Non Acquis")
                 repartition = df_filtered["Resultat_Court"].value_counts().reset_index()
                 repartition.columns = ["Statut", "Nombre"]
                 fig_pie = px.pie(repartition, values="Nombre", names="Statut", color="Statut", 
                                  color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"},
                                  hole=0.4)
-                st.plotly_chart(fig_pie, use_container_width=True)
+                st.plotly_chart(fig_pie, use_container_width=True, key="pie_chart_dash")
 
             with c_chart2:
                 st.markdown("**Évaluations par Classe**")
@@ -469,23 +462,22 @@ else:
                 fig_bar = px.bar(eval_par_classe, x="Classe", y="Nombre", color="Resultat_Court",
                                  barmode="group",
                                  color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"})
-                st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_bar, use_container_width=True, key="bar_chart_dash")
 
-            # Tableau dynamique coloré
             st.markdown("**Détail des données (filtré)**")
             df_display = df_filtered[["Nom_Prenom", "Classe", "Code_UAA", "Date_Epreuve", "Resultat"]].sort_values(by="Date_Epreuve", ascending=False)
             df_display["Date_Epreuve"] = df_display["Date_Epreuve"].dt.strftime('%d/%m/%Y')
             
-            # Application de la couleur sur les lignes
+            # Affichage du tableau (sans déclencher de rerun au clic)
             st.dataframe(df_display.style.apply(colorer_lignes, axis=1), hide_index=True, use_container_width=True)
-
 
     # ==========================================
     # ONGLET 3 : BULLETINS
     # ==========================================
     with tab3:
         st.subheader("1. Bulletin Individuel")
-        eleve_pdf = st.selectbox("Sélectionner l'élève", existing_students, key="pdf_select") if existing_students else None
+        # Ajout d'une key
+        eleve_pdf = st.selectbox("Sélectionner l'élève", existing_students, key="pdf_select_t3") if existing_students else None
         
         if eleve_pdf:
             email_auto = normalize_email_text(eleve_pdf) + DOMAIN_ECOLE
@@ -493,14 +485,14 @@ else:
             df_final = get_latest_results(df_historique)
             
             pdf_bytes = generate_pdf(eleve_pdf, df_final)
-            st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf")
+            st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf", key="dl_pdf_indiv")
             
             with st.expander("📧 Envoyer par mail"):
                 c_mail1, c_mail2 = st.columns(2)
-                email_stud = c_mail1.text_input("Email de l'élève", value=email_auto)
-                email_parent = c_mail2.text_input("Email parents/tuteurs (facultatif)")
+                email_stud = c_mail1.text_input("Email de l'élève", value=email_auto, key="email_stud_t3")
+                email_parent = c_mail2.text_input("Email parents/tuteurs (facultatif)", key="email_parent_t3")
                 
-                if st.button("Envoyer le bulletin"):
+                if st.button("Envoyer le bulletin", key="btn_send_indiv"):
                     reussites_actuelles = df_final[df_final["Resultat"].astype(str).str.contains("Réussite")]
                     nb_uaa = reussites_actuelles["Code_UAA"].nunique()
                     cq6_message = "\n\n🎉 Excellente nouvelle ! Avec la validation de ces unités, l'élève a officiellement acquis les 6 UAA nécessaires et obtient son Certificat de Qualification (CQ6). Toutes nos félicitations !" if nb_uaa >= 6 else ""
@@ -517,30 +509,29 @@ else:
         st.divider()
         st.subheader("2. Rapport Global")
         pdf_global_bytes = generate_global_pdf(df)
-        st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf")
+        st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
         
-        email_rapport = st.text_input("Email prof/direction")
-        if st.button("Envoyer Rapport"):
+        email_rapport = st.text_input("Email prof/direction", key="email_rapport_t3")
+        if st.button("Envoyer Rapport", key="btn_send_global"):
             sujet = f"Rapport Global UAA - {NOM_OPTION} - {datetime.now().strftime('%d/%m/%Y')}"
             corps = f"Bonjour,\n\nVeuillez trouver ci-joint le récapitulatif global de l'état d'avancement des Compétences (UAA) pour l'ensemble des élèves actifs de l'option {NOM_OPTION}, arrêté à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nCordialement,\nL'équipe pédagogique."
             if send_email_wrapper([email_rapport], sujet, corps, pdf_global_bytes, "Rapport_Global.pdf"):
                 st.success("✅ Rapport envoyé à la direction !")
 
     # ==========================================
-    # ONGLET 4 : ADMIN (RENAME AJOUTÉ)
+    # ONGLET 4 : ADMIN
     # ==========================================
     with tab4:
         st.subheader("⚙️ Administration & Base de Données")
-        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"])
+        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"], key="admin_action_radio")
         
-        # --- NOUVEAU : RENOMMER ---
         if action == "Renommer un élève":
             if existing_students:
                 st.info("Cette action modifiera le nom de l'élève sur l'ensemble de ses enregistrements.")
-                old_name = st.selectbox("Sélectionnez l'élève à renommer", existing_students)
-                new_name = st.text_input("Entrez le nouveau nom (Prénom Nom)")
+                old_name = st.selectbox("Sélectionnez l'élève à renommer", existing_students, key="rename_old_t4")
+                new_name = st.text_input("Entrez le nouveau nom (Prénom Nom)", key="rename_new_t4")
                 
-                if st.button("Valider le nouveau nom", type="primary"):
+                if st.button("Valider le nouveau nom", type="primary", key="btn_rename"):
                     if new_name.strip() == "":
                         st.error("Le nouveau nom ne peut pas être vide.")
                     else:
@@ -552,8 +543,8 @@ else:
 
         elif action == "Archiver":
             if existing_students:
-                eleve_to_arch = st.selectbox("Élève", existing_students)
-                if st.button(f"Archiver {eleve_to_arch}"):
+                eleve_to_arch = st.selectbox("Élève", existing_students, key="archive_eleve_t4")
+                if st.button(f"Archiver {eleve_to_arch}", key="btn_archive"):
                     df.loc[df["Nom_Prenom"] == eleve_to_arch, "Statut"] = "Archivé"
                     save_data(df)
                     st.success("Fait !")
@@ -563,8 +554,8 @@ else:
             df_archives = df[df["Statut"] == "Archivé"]
             eleves_arch = df_archives["Nom_Prenom"].unique().tolist()
             if eleves_arch:
-                e = st.selectbox("Restaurer qui ?", eleves_arch)
-                if st.button("Restaurer"):
+                e = st.selectbox("Restaurer qui ?", eleves_arch, key="restore_eleve_t4")
+                if st.button("Restaurer", key="btn_restore"):
                     df.loc[df["Nom_Prenom"] == e, "Statut"] = "Actif"
                     save_data(df)
                     st.success("Restauré !")
@@ -574,8 +565,8 @@ else:
 
         elif action == "Supprimer Ligne":
             st.dataframe(df)
-            idx = st.number_input("Index de la ligne à supprimer", min_value=0, max_value=max(0, len(df)-1), step=1)
-            if st.button("Supprimer définitivement", type="primary"):
+            idx = st.number_input("Index de la ligne à supprimer", min_value=0, max_value=max(0, len(df)-1), step=1, key="delete_idx_t4")
+            if st.button("Supprimer définitivement", type="primary", key="btn_delete_line"):
                 df = df.drop(index=idx).reset_index(drop=True)
                 save_data(df)
                 st.success("Ligne supprimée !")

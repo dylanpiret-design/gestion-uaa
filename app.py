@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import unicodedata
-import time  # NOUVEAU : Ajouté pour laisser le temps aux ballons d'apparaître
+import time
 from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
@@ -136,6 +136,15 @@ def generate_pdf(nom_eleve, df_eleve_filtered):
     pdf.set_font("Arial", '', 10)
     pdf.cell(0, 10, clean_text(f"Date du document : {datetime.now().strftime('%d/%m/%Y')}"), ln=True)
     pdf.ln(2)
+
+    # --- VERIFICATION CQ6 POUR AFFICHAGE ---
+    reussites = df_eleve_filtered[df_eleve_filtered["Resultat"].astype(str).str.contains("Réussite")]
+    if reussites["Code_UAA"].nunique() >= 6:
+        pdf.set_font("Arial", 'B', 11)
+        pdf.set_text_color(0, 128, 0) # Vert
+        pdf.cell(0, 10, clean_text("*** CERTIFICAT DE QUALIFICATION (CQ6) OBTENU ***"), ln=True, align='C')
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(2)
     
     pdf.set_fill_color(230, 230, 230)
     pdf.set_font("Arial", 'B', 9)
@@ -199,12 +208,20 @@ def generate_global_pdf(df):
             pdf.add_page()
             pdf.set_y(30)
 
-        pdf.set_font("Arial", 'B', 12)
-        pdf.set_fill_color(220, 230, 255) 
-        pdf.set_text_color(0, 0, 0)
-        pdf.cell(0, 8, clean_text(f"Élève : {eleve}"), 1, 1, 'L', 1)
-        
         sub_df = get_latest_results(df[df["Nom_Prenom"] == eleve])
+        
+        # --- VERIFICATION CQ6 POUR AFFICHAGE ---
+        reussites = sub_df[sub_df["Resultat"].astype(str).str.contains("Réussite")]
+        if reussites["Code_UAA"].nunique() >= 6:
+            titre_eleve = f"Élève : {eleve} - *** CQ6 OBTENU ***"
+            pdf.set_fill_color(200, 255, 200) # Vert clair
+        else:
+            titre_eleve = f"Élève : {eleve}"
+            pdf.set_fill_color(220, 230, 255) # Bleu clair
+            
+        pdf.set_font("Arial", 'B', 12)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(0, 8, clean_text(titre_eleve), 1, 1, 'L', 1)
         
         if sub_df.empty:
             pdf.set_font("Arial", 'I', 10)
@@ -258,7 +275,8 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         msg['From'] = email_exp
         msg['To'] = ", ".join(destinataires_list) 
         msg['Subject'] = sujet
-        msg.attach(MIMEText(corps, 'plain'))
+        # Forcer l'encodage utf-8 pour bien gérer les accents comme dans "Électricien(ne)"
+        msg.attach(MIMEText(corps, 'plain', 'utf-8'))
 
         if pdf_bytes and pdf_name:
             part = MIMEBase('application', 'octet-stream')
@@ -384,18 +402,15 @@ else:
                     save_data(df)
                     st.success(f"✅ Résultat enregistré pour {nom_eleve} !")
 
-                    # --- NOUVEAUTÉ : DÉTECTION DU CQ6 (6 UAA) ---
-                    # On filtre toutes les réussites de cet élève dans le nouveau tableau
                     reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
-                    # On compte combien d'UAA différentes ont été validées
                     nombre_uaa_acquises = reussites_eleve["Code_UAA"].nunique()
                     
                     if nombre_uaa_acquises >= 6:
                         st.balloons()
                         st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a obtenu son Certificat de Qualification (CQ6) ! (6 UAA validées)")
-                        time.sleep(3.5) # On laisse le temps de voir les ballons avant de recharger !
+                        time.sleep(3.5) 
                     else:
-                        time.sleep(1) # Petit délai normal
+                        time.sleep(1) 
 
                     st.rerun()
 
@@ -413,26 +428,21 @@ else:
             st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf")
             
             with st.expander("📧 Envoyer par mail"):
-                # NOUVEAUTÉ : Ajout du champ pour les parents
                 c_mail1, c_mail2 = st.columns(2)
                 email_stud = c_mail1.text_input("Email de l'élève", value=email_auto)
                 email_parent = c_mail2.text_input("Email parents/tuteurs (facultatif)")
                 
                 if st.button("Envoyer le bulletin"):
-                    # On compte les réussites pour le texte du mail
                     reussites_actuelles = df_final[df_final["Resultat"].astype(str).str.contains("Réussite")]
                     nb_uaa = reussites_actuelles["Code_UAA"].nunique()
                     
-                    # Message additionnel si CQ6 validé !
                     cq6_message = ""
                     if nb_uaa >= 6:
                         cq6_message = "\n\n🎉 Excellente nouvelle ! Avec la validation de ces unités, l'élève a officiellement acquis les 6 UAA nécessaires et obtient son Certificat de Qualification (CQ6). Toutes nos félicitations !"
 
-                    # Textes améliorés
                     sujet = f"Bilan d'avancement des Compétences (UAA) - {eleve_pdf}"
                     corps = f"Bonjour,\n\nVoici le récapitulatif officiel de l'état d'avancement des Unités d'Acquis d'Apprentissage (UAA) pour {eleve_pdf} à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nBilan actuel :\n- Total des UAA validées (Acquises) : {nb_uaa} / 6{cq6_message}\n\nVous trouverez le détail complet dans le document PDF en pièce jointe.\n\nNous restons à votre entière disposition pour faire le point sur ces résultats.\n\nCordialement,\nL'équipe pédagogique."
                     
-                    # Liste des destinataires
                     destinataires = [email_stud]
                     if email_parent.strip() != "":
                         destinataires.append(email_parent.strip())
@@ -447,9 +457,8 @@ else:
         
         email_rapport = st.text_input("Email prof/direction")
         if st.button("Envoyer Rapport"):
-            # Textes améliorés pour le global
-            sujet = f"Rapport Global UAA - Électriciens de maintenance - {datetime.now().strftime('%d/%m/%Y')}"
-            corps = f"Bonjour,\n\nVeuillez trouver ci-joint le récapitulatif global de l'état d'avancement des Compétences (UAA) pour l'ensemble des élèves actifs de l'option, arrêté à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nCordialement,\nL'application de gestion."
+            sujet = f"Rapport Global UAA - {NOM_OPTION} - {datetime.now().strftime('%d/%m/%Y')}"
+            corps = f"Bonjour,\n\nVeuillez trouver ci-joint le récapitulatif global de l'état d'avancement des Compétences (UAA) pour l'ensemble des élèves actifs de l'option {NOM_OPTION}, arrêté à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nCordialement,\nL'équipe pédagogique."
             
             if send_email_wrapper([email_rapport], sujet, corps, pdf_global_bytes, "Rapport_Global.pdf"):
                 st.success("✅ Rapport envoyé à la direction !")

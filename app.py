@@ -497,9 +497,10 @@ else:
             st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf", key="dl_pdf_indiv")
             
             with st.expander("📧 Envoyer par mail"):
+                st.caption("💡 *Astuce : Vous pouvez envoyer à plusieurs destinataires en séparant les adresses par une virgule (ex: parent1@mail.be, parent2@mail.be).*")
                 c_mail1, c_mail2 = st.columns(2)
                 email_stud = c_mail1.text_input("Email de l'élève", value=email_auto, key="email_stud_p3")
-                email_parent = c_mail2.text_input("Email parents/tuteurs (facultatif)", key="email_parent_p3")
+                email_parent = c_mail2.text_input("Email(s) parents/tuteurs (facultatif)", key="email_parent_p3")
                 
                 if st.button("Envoyer le bulletin", key="btn_send_indiv"):
                     reussites_actuelles = df_final[df_final["Resultat"].astype(str).str.contains("Réussite")]
@@ -509,23 +510,38 @@ else:
                     sujet = f"Bilan d'avancement des Compétences (UAA) - {eleve_pdf}"
                     corps = f"Bonjour,\n\nVoici le récapitulatif officiel de l'état d'avancement des Unités d'Acquis d'Apprentissage (UAA) pour {eleve_pdf} à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nBilan actuel :\n- Total des UAA validées (Acquises) : {nb_uaa} / 6{cq6_message}\n\nVous trouverez le détail complet dans le document PDF en pièce jointe.\n\nNous restons à votre entière disposition pour faire le point sur ces résultats.\n\nCordialement,\nL'équipe pédagogique."
                     
-                    destinataires = [email_stud]
-                    if email_parent.strip() != "": destinataires.append(email_parent.strip())
+                    # Nettoyage et préparation de la liste des destinataires
+                    destinataires = []
+                    if email_stud.strip():
+                        destinataires.extend([e.strip() for e in email_stud.replace(';', ',').split(',') if e.strip()])
+                    if email_parent.strip():
+                        destinataires.extend([e.strip() for e in email_parent.replace(';', ',').split(',') if e.strip()])
 
-                    if send_email_wrapper(destinataires, sujet, corps, pdf_bytes, f"Bulletin_{eleve_pdf}.pdf"):
-                        st.success(f"✅ Mail envoyé avec succès à {', '.join(destinataires)} !")
+                    if not destinataires:
+                        st.error("❌ Veuillez indiquer au moins une adresse email.")
+                    else:
+                        if send_email_wrapper(destinataires, sujet, corps, pdf_bytes, f"Bulletin_{eleve_pdf}.pdf"):
+                            st.success(f"✅ Mail envoyé avec succès à : {', '.join(destinataires)} !")
 
         st.divider()
         st.subheader("2. Rapport Global")
         pdf_global_bytes = generate_global_pdf(df)
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
         
-        email_rapport = st.text_input("Email prof/direction", key="email_rapport_p3")
+        st.caption("💡 *Astuce : Séparez les adresses par une virgule pour l'envoyer à plusieurs directions/profs en même temps.*")
+        email_rapport = st.text_input("Email(s) prof/direction", key="email_rapport_p3")
+        
         if st.button("Envoyer Rapport", key="btn_send_global"):
-            sujet = f"Rapport Global UAA - {NOM_OPTION} - {datetime.now().strftime('%d/%m/%Y')}"
-            corps = f"Bonjour,\n\nVeuillez trouver ci-joint le récapitulatif global de l'état d'avancement des Compétences (UAA) pour l'ensemble des élèves actifs de l'option {NOM_OPTION}, arrêté à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nCordialement,\nL'équipe pédagogique."
-            if send_email_wrapper([email_rapport], sujet, corps, pdf_global_bytes, "Rapport_Global.pdf"):
-                st.success("✅ Rapport envoyé à la direction !")
+            destinataires_globaux = [e.strip() for e in email_rapport.replace(';', ',').split(',') if e.strip()]
+            
+            if not destinataires_globaux:
+                st.error("❌ Veuillez indiquer au moins une adresse email.")
+            else:
+                sujet = f"Rapport Global UAA - {NOM_OPTION} - {datetime.now().strftime('%d/%m/%Y')}"
+                corps = f"Bonjour,\n\nVeuillez trouver ci-joint le récapitulatif global de l'état d'avancement des Compétences (UAA) pour l'ensemble des élèves actifs de l'option {NOM_OPTION}, arrêté à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nCordialement,\nL'équipe pédagogique."
+                
+                if send_email_wrapper(destinataires_globaux, sujet, corps, pdf_global_bytes, "Rapport_Global.pdf"):
+                    st.success(f"✅ Rapport envoyé à : {', '.join(destinataires_globaux)} !")
 
     # ==========================================
     # PAGE 4 : ADMIN

@@ -9,6 +9,7 @@ from email.mime.base import MIMEBase
 from email import encoders
 import unicodedata
 import time
+import plotly.express as px  # NOUVEAU : Pour les graphiques
 from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
@@ -52,6 +53,14 @@ def get_latest_results(df_eleve):
     df_sorted = df_eleve.sort_values(by="Date_Epreuve", ascending=False)
     df_latest = df_sorted.drop_duplicates(subset=["Code_UAA"], keep="first")
     return df_latest.sort_values(by="Code_UAA")
+
+# NOUVEAU : Fonction pour colorer le tableau de bord
+def colorer_lignes(row):
+    if 'Réussite' in str(row['Resultat']):
+        return ['background-color: #d4edda; color: #155724'] * len(row)
+    elif 'Echec' in str(row['Resultat']):
+        return ['background-color: #f8d7da; color: #721c24'] * len(row)
+    return [''] * len(row)
 
 # --- GESTION DES DONNÉES GOOGLE SHEETS ---
 
@@ -137,11 +146,10 @@ def generate_pdf(nom_eleve, df_eleve_filtered):
     pdf.cell(0, 10, clean_text(f"Date du document : {datetime.now().strftime('%d/%m/%Y')}"), ln=True)
     pdf.ln(2)
 
-    # --- VERIFICATION CQ6 POUR AFFICHAGE ---
     reussites = df_eleve_filtered[df_eleve_filtered["Resultat"].astype(str).str.contains("Réussite")]
     if reussites["Code_UAA"].nunique() >= 6:
         pdf.set_font("Arial", 'B', 11)
-        pdf.set_text_color(0, 128, 0) # Vert
+        pdf.set_text_color(0, 128, 0)
         pdf.cell(0, 10, clean_text("*** CERTIFICAT DE QUALIFICATION (CQ6) OBTENU ***"), ln=True, align='C')
         pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
@@ -210,14 +218,13 @@ def generate_global_pdf(df):
 
         sub_df = get_latest_results(df[df["Nom_Prenom"] == eleve])
         
-        # --- VERIFICATION CQ6 POUR AFFICHAGE ---
         reussites = sub_df[sub_df["Resultat"].astype(str).str.contains("Réussite")]
         if reussites["Code_UAA"].nunique() >= 6:
             titre_eleve = f"Élève : {eleve} - *** CQ6 OBTENU ***"
-            pdf.set_fill_color(200, 255, 200) # Vert clair
+            pdf.set_fill_color(200, 255, 200) 
         else:
             titre_eleve = f"Élève : {eleve}"
-            pdf.set_fill_color(220, 230, 255) # Bleu clair
+            pdf.set_fill_color(220, 230, 255) 
             
         pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(0, 0, 0)
@@ -275,7 +282,6 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         msg['From'] = email_exp
         msg['To'] = ", ".join(destinataires_list) 
         msg['Subject'] = sujet
-        # Forcer l'encodage utf-8 pour bien gérer les accents comme dans "Électricien(ne)"
         msg.attach(MIMEText(corps, 'plain', 'utf-8'))
 
         if pdf_bytes and pdf_name:
@@ -297,17 +303,12 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
 
 # --- UI PRINCIPALE ---
 
-st.set_page_config(page_title="Encodage UAA", layout="centered")
+st.set_page_config(page_title="Encodage UAA", page_icon="⚡", layout="wide")
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    try:
-        st.image(LOGO_PATH, width=100)
-    except:
-        pass
-    
     st.title("🔒 Connexion")
     pwd = st.text_input("Mot de passe", type="password")
     if st.button("Se connecter"):
@@ -322,12 +323,6 @@ if not st.session_state.authenticated:
         else:
             st.error("Mot de passe incorrect")
 else:
-    try:
-        st.sidebar.image(LOGO_PATH, use_container_width=True)
-        st.sidebar.divider()
-    except:
-        pass
-        
     st.sidebar.title("Menu")
     if st.sidebar.button("Se déconnecter"):
         st.session_state.authenticated = False
@@ -340,81 +335,155 @@ else:
     existing_students = df_actifs["Nom_Prenom"].unique().tolist() if not df_actifs.empty else []
     existing_students.sort()
 
-    tab1, tab2, tab3 = st.tabs(["📝 Encodage", "📧 Bulletins", "🗑️ Admin"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📝 Encodage", "📊 Dashboard", "📧 Bulletins", "⚙️ Admin"])
 
+    # ==========================================
+    # ONGLET 1 : ENCODAGE (AVEC FORM & VALIDATION)
+    # ==========================================
     with tab1:
         st.subheader("Nouvel encodage")
+        
+        # Sélection du mode hors du formulaire pour MAJ dynamique
         mode_eleve = st.radio("Élève :", ["Existant", "Nouveau"], horizontal=True)
         nom_eleve = ""
+        
         if mode_eleve == "Existant":
             if existing_students:
-                nom_eleve = st.selectbox("Choisir l'élève", existing_students)
+                nom_eleve = st.selectbox("Choisir l'élève", existing_students, key="select_exist")
             else:
                 st.warning("Aucun élève actif.")
         else:
-            new_name = st.text_input("Nom du nouvel élève (Prénom Nom)")
-            if new_name: nom_eleve = new_name.strip()
+            nom_eleve = st.text_input("Nom du nouvel élève (Prénom Nom)", key="input_new").strip()
 
-        if nom_eleve:
-            st.divider()
+        st.divider()
+
+        # FORMULAIRE
+        with st.form("form_encodage", clear_on_submit=False):
             c1, c2 = st.columns(2)
             classe = c1.selectbox("Année", list(PROGRAMME.keys()))
             codes_uaa = list(PROGRAMME[classe].keys())
             code_choisi = c2.selectbox("UAA", codes_uaa)
             desc = PROGRAMME[classe][code_choisi]
-            st.info(f"{code_choisi} : {desc}")
+            st.info(f"**Compétence visée :** {desc}")
 
-            deja_reussi = False
-            date_reussite = None
+            c3, c4 = st.columns(2)
+            date_ep = c3.date_input("Date de l'épreuve", datetime.today())
+            res = c4.radio("Résultat obtenu", ["Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
 
-            if mode_eleve == "Existant" and not df.empty:
-                mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite"))
-                resultats_precedents = df[mask]
-                
-                if not resultats_precedents.empty:
-                    deja_reussi = True
-                    d = resultats_precedents.iloc[0]["Date_Epreuve"]
-                    if isinstance(d, str):
-                        date_reussite = d[:10]
+            submitted = st.form_submit_button("💾 Sauvegarder le résultat", type="primary")
+
+            if submitted:
+                # Validation des données
+                if not nom_eleve:
+                    st.error("❌ Oups ! Veuillez renseigner le nom de l'élève avant de sauvegarder.")
+                elif not date_ep:
+                    st.error("❌ Oups ! Veuillez définir une date valide.")
+                else:
+                    # Vérification si l'UAA est déjà acquise
+                    deja_reussi = False
+                    if mode_eleve == "Existant" and not df.empty:
+                        mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite"))
+                        if not df[mask].empty:
+                            deja_reussi = True
+
+                    if deja_reussi:
+                        st.error(f"🔒 L'élève **{nom_eleve}** a déjà validé cette UAA. Enregistrement annulé.")
                     else:
-                        date_reussite = d.strftime('%d/%m/%Y')
+                        # Sauvegarde
+                        date_to_save = pd.to_datetime(date_ep)
+                        new_row = {
+                            "Nom_Prenom": nom_eleve, 
+                            "Classe": classe, 
+                            "Code_UAA": code_choisi, 
+                            "Description_UAA": desc, 
+                            "Date_Epreuve": date_to_save, 
+                            "Resultat": res,
+                            "Statut": "Actif"
+                        }
+                        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                        save_data(df)
+                        
+                        # Retours visuels
+                        st.toast('✅ Encodage enregistré avec succès !')
+                        
+                        reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
+                        if reussites_eleve["Code_UAA"].nunique() >= 6:
+                            st.balloons()
+                            st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
+                            time.sleep(3)
+                        else:
+                            st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
+                            time.sleep(1)
+                        st.rerun()
 
-            if deja_reussi:
-                st.success(f"✅ {nom_eleve} a déjà validé cette UAA le {date_reussite}.")
-                st.warning("🔒 L'encodage est verrouillé pour cette UAA (Déjà Acquise).")
-            else:
-                c3, c4 = st.columns(2)
-                date_ep = c3.date_input("Date", datetime.today())
-                res = c4.radio("Résultat", ["Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
-                
-                if st.button("Sauvegarder", type="primary"):
-                    date_to_save = pd.to_datetime(date_ep)
-                    new_row = {
-                        "Nom_Prenom": nom_eleve, 
-                        "Classe": classe, 
-                        "Code_UAA": code_choisi, 
-                        "Description_UAA": desc, 
-                        "Date_Epreuve": date_to_save, 
-                        "Resultat": res,
-                        "Statut": "Actif"
-                    }
-                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                    save_data(df)
-                    st.success(f"✅ Résultat enregistré pour {nom_eleve} !")
-
-                    reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
-                    nombre_uaa_acquises = reussites_eleve["Code_UAA"].nunique()
-                    
-                    if nombre_uaa_acquises >= 6:
-                        st.balloons()
-                        st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a obtenu son Certificat de Qualification (CQ6) ! (6 UAA validées)")
-                        time.sleep(3.5) 
-                    else:
-                        time.sleep(1) 
-
-                    st.rerun()
-
+    # ==========================================
+    # ONGLET 2 : DASHBOARD (NOUVEAU)
+    # ==========================================
     with tab2:
+        st.subheader("📊 Tableau de Bord & Données")
+        
+        if df_actifs.empty:
+            st.info("Aucune donnée enregistrée pour le moment.")
+        else:
+            # Filtres
+            col_f1, col_f2 = st.columns(2)
+            classes_uniques = df_actifs["Classe"].unique().tolist()
+            filtre_classe = col_f1.multiselect("Filtrer par Classe", classes_uniques, default=classes_uniques)
+            filtre_eleve = col_f2.multiselect("Filtrer par Élève", existing_students, default=[])
+
+            # Application des filtres
+            df_filtered = df_actifs[df_actifs["Classe"].isin(filtre_classe)]
+            if filtre_eleve:
+                df_filtered = df_filtered[df_filtered["Nom_Prenom"].isin(filtre_eleve)]
+
+            # KPIs
+            nb_eleves = df_filtered["Nom_Prenom"].nunique()
+            total_eval = len(df_filtered)
+            reussites = len(df_filtered[df_filtered["Resultat"].str.contains("Réussite")])
+            taux_reussite = round((reussites / total_eval * 100) if total_eval > 0 else 0, 1)
+
+            kpi1, kpi2, kpi3 = st.columns(3)
+            kpi1.metric("👩‍🎓 Élèves évalués", nb_eleves)
+            kpi2.metric("📝 Total des évaluations", total_eval)
+            kpi3.metric("🎯 Taux de réussite global", f"{taux_reussite}%")
+
+            st.divider()
+
+            # Graphiques
+            c_chart1, c_chart2 = st.columns(2)
+            
+            with c_chart1:
+                st.markdown("**Répartition des Résultats**")
+                # Création d'une colonne simplifiée pour le camembert
+                df_filtered["Resultat_Court"] = df_filtered["Resultat"].apply(lambda x: "Acquis" if "Réussite" in str(x) else "Non Acquis")
+                repartition = df_filtered["Resultat_Court"].value_counts().reset_index()
+                repartition.columns = ["Statut", "Nombre"]
+                fig_pie = px.pie(repartition, values="Nombre", names="Statut", color="Statut", 
+                                 color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"},
+                                 hole=0.4)
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+            with c_chart2:
+                st.markdown("**Évaluations par Classe**")
+                eval_par_classe = df_filtered.groupby(["Classe", "Resultat_Court"]).size().reset_index(name="Nombre")
+                fig_bar = px.bar(eval_par_classe, x="Classe", y="Nombre", color="Resultat_Court",
+                                 barmode="group",
+                                 color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"})
+                st.plotly_chart(fig_bar, use_container_width=True)
+
+            # Tableau dynamique coloré
+            st.markdown("**Détail des données (filtré)**")
+            df_display = df_filtered[["Nom_Prenom", "Classe", "Code_UAA", "Date_Epreuve", "Resultat"]].sort_values(by="Date_Epreuve", ascending=False)
+            df_display["Date_Epreuve"] = df_display["Date_Epreuve"].dt.strftime('%d/%m/%Y')
+            
+            # Application de la couleur sur les lignes
+            st.dataframe(df_display.style.apply(colorer_lignes, axis=1), hide_index=True, use_container_width=True)
+
+
+    # ==========================================
+    # ONGLET 3 : BULLETINS
+    # ==========================================
+    with tab3:
         st.subheader("1. Bulletin Individuel")
         eleve_pdf = st.selectbox("Sélectionner l'élève", existing_students, key="pdf_select") if existing_students else None
         
@@ -422,7 +491,6 @@ else:
             email_auto = normalize_email_text(eleve_pdf) + DOMAIN_ECOLE
             df_historique = df[df["Nom_Prenom"] == eleve_pdf].copy()
             df_final = get_latest_results(df_historique)
-            st.dataframe(df_final[["Classe", "Code_UAA", "Resultat", "Date_Epreuve"]], hide_index=True)
             
             pdf_bytes = generate_pdf(eleve_pdf, df_final)
             st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf")
@@ -435,17 +503,13 @@ else:
                 if st.button("Envoyer le bulletin"):
                     reussites_actuelles = df_final[df_final["Resultat"].astype(str).str.contains("Réussite")]
                     nb_uaa = reussites_actuelles["Code_UAA"].nunique()
-                    
-                    cq6_message = ""
-                    if nb_uaa >= 6:
-                        cq6_message = "\n\n🎉 Excellente nouvelle ! Avec la validation de ces unités, l'élève a officiellement acquis les 6 UAA nécessaires et obtient son Certificat de Qualification (CQ6). Toutes nos félicitations !"
+                    cq6_message = "\n\n🎉 Excellente nouvelle ! Avec la validation de ces unités, l'élève a officiellement acquis les 6 UAA nécessaires et obtient son Certificat de Qualification (CQ6). Toutes nos félicitations !" if nb_uaa >= 6 else ""
 
                     sujet = f"Bilan d'avancement des Compétences (UAA) - {eleve_pdf}"
                     corps = f"Bonjour,\n\nVoici le récapitulatif officiel de l'état d'avancement des Unités d'Acquis d'Apprentissage (UAA) pour {eleve_pdf} à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nBilan actuel :\n- Total des UAA validées (Acquises) : {nb_uaa} / 6{cq6_message}\n\nVous trouverez le détail complet dans le document PDF en pièce jointe.\n\nNous restons à votre entière disposition pour faire le point sur ces résultats.\n\nCordialement,\nL'équipe pédagogique."
                     
                     destinataires = [email_stud]
-                    if email_parent.strip() != "":
-                        destinataires.append(email_parent.strip())
+                    if email_parent.strip() != "": destinataires.append(email_parent.strip())
 
                     if send_email_wrapper(destinataires, sujet, corps, pdf_bytes, f"Bulletin_{eleve_pdf}.pdf"):
                         st.success(f"✅ Mail envoyé avec succès à {', '.join(destinataires)} !")
@@ -459,15 +523,34 @@ else:
         if st.button("Envoyer Rapport"):
             sujet = f"Rapport Global UAA - {NOM_OPTION} - {datetime.now().strftime('%d/%m/%Y')}"
             corps = f"Bonjour,\n\nVeuillez trouver ci-joint le récapitulatif global de l'état d'avancement des Compétences (UAA) pour l'ensemble des élèves actifs de l'option {NOM_OPTION}, arrêté à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nCordialement,\nL'équipe pédagogique."
-            
             if send_email_wrapper([email_rapport], sujet, corps, pdf_global_bytes, "Rapport_Global.pdf"):
                 st.success("✅ Rapport envoyé à la direction !")
 
-    with tab3:
-        st.subheader("⚠️ Admin (Google Sheets)")
-        action = st.radio("Action :", ["Archiver", "Restaurer", "Supprimer Ligne"])
+    # ==========================================
+    # ONGLET 4 : ADMIN (RENAME AJOUTÉ)
+    # ==========================================
+    with tab4:
+        st.subheader("⚙️ Administration & Base de Données")
+        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"])
         
-        if action == "Archiver":
+        # --- NOUVEAU : RENOMMER ---
+        if action == "Renommer un élève":
+            if existing_students:
+                st.info("Cette action modifiera le nom de l'élève sur l'ensemble de ses enregistrements.")
+                old_name = st.selectbox("Sélectionnez l'élève à renommer", existing_students)
+                new_name = st.text_input("Entrez le nouveau nom (Prénom Nom)")
+                
+                if st.button("Valider le nouveau nom", type="primary"):
+                    if new_name.strip() == "":
+                        st.error("Le nouveau nom ne peut pas être vide.")
+                    else:
+                        df.loc[df["Nom_Prenom"] == old_name, "Nom_Prenom"] = new_name.strip()
+                        save_data(df)
+                        st.success(f"✅ {old_name} a été renommé en {new_name.strip()} !")
+                        time.sleep(1)
+                        st.rerun()
+
+        elif action == "Archiver":
             if existing_students:
                 eleve_to_arch = st.selectbox("Élève", existing_students)
                 if st.button(f"Archiver {eleve_to_arch}"):
@@ -492,8 +575,9 @@ else:
         elif action == "Supprimer Ligne":
             st.dataframe(df)
             idx = st.number_input("Index de la ligne à supprimer", min_value=0, max_value=max(0, len(df)-1), step=1)
-            if st.button("Supprimer définitivement"):
+            if st.button("Supprimer définitivement", type="primary"):
                 df = df.drop(index=idx).reset_index(drop=True)
                 save_data(df)
                 st.success("Ligne supprimée !")
+                time.sleep(1)
                 st.rerun()

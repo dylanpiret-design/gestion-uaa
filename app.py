@@ -8,6 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 import unicodedata
+import time  # NOUVEAU : Ajouté pour laisser le temps aux ballons d'apparaître
 from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
@@ -47,60 +48,41 @@ def get_latest_results(df_eleve):
     if df_eleve.empty:
         return df_eleve
     df_eleve = df_eleve.copy()
-    # On assure que c'est bien une date pour le tri
     df_eleve['Date_Epreuve'] = pd.to_datetime(df_eleve['Date_Epreuve'], errors='coerce')
     df_sorted = df_eleve.sort_values(by="Date_Epreuve", ascending=False)
     df_latest = df_sorted.drop_duplicates(subset=["Code_UAA"], keep="first")
     return df_latest.sort_values(by="Code_UAA")
 
-# --- GESTION DES DONNÉES GOOGLE SHEETS (CORRIGÉE) ---
+# --- GESTION DES DONNÉES GOOGLE SHEETS ---
 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     try:
         df = conn.read(worksheet="Data", ttl=0)
-        
-        # Si le fichier est vide ou ne contient que les entêtes
         if df.empty:
              return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
-        
-        # 1. On supprime les lignes totalement vides (les "fantômes" d'Excel)
         df = df.dropna(how="all")
-        
-        # 2. Conversion robuste de la date (erreurs='coerce' évite le crash si une date est mal écrite)
         df['Date_Epreuve'] = pd.to_datetime(df['Date_Epreuve'], errors='coerce')
-        
-        # 3. Gestion du Statut par défaut
         if 'Statut' not in df.columns:
             df['Statut'] = 'Actif'
         else:
             df['Statut'] = df['Statut'].fillna('Actif')
-            
         return df
     except Exception:
-        # En cas de gros problème de connexion, on renvoie un DF vide pour ne pas crasher l'app
         return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
 
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
-    
-    # 1. Copie de sécurité
     df_to_save = df.copy()
-    
-    # 2. On s'assure que TOUTES les colonnes existent, même si vides
     colonnes_obligatoires = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"]
     for col in colonnes_obligatoires:
         if col not in df_to_save.columns:
             df_to_save[col] = ""
 
-    # 3. On ne garde QUE ces colonnes, dans le BON ordre
     df_to_save = df_to_save[colonnes_obligatoires]
-    
-    # 4. Nettoyage final (Remplir les vides, tout en texte)
     df_to_save = df_to_save.fillna("")
     df_to_save = df_to_save.astype(str)
     
-    # 5. On envoie vers l'onglet "Data"
     try:
         conn.update(worksheet="Data", data=df_to_save)
         st.cache_data.clear()
@@ -381,7 +363,7 @@ else:
 
             if deja_reussi:
                 st.success(f"✅ {nom_eleve} a déjà validé cette UAA le {date_reussite}.")
-                st.warning("🔒 L'encodage est verrouillé.")
+                st.warning("🔒 L'encodage est verrouillé pour cette UAA (Déjà Acquise).")
             else:
                 c3, c4 = st.columns(2)
                 date_ep = c3.date_input("Date", datetime.today())
@@ -400,7 +382,21 @@ else:
                     }
                     df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                     save_data(df)
-                    st.success("Enregistré dans le Cloud !")
+                    st.success(f"✅ Résultat enregistré pour {nom_eleve} !")
+
+                    # --- NOUVEAUTÉ : DÉTECTION DU CQ6 (6 UAA) ---
+                    # On filtre toutes les réussites de cet élève dans le nouveau tableau
+                    reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
+                    # On compte combien d'UAA différentes ont été validées
+                    nombre_uaa_acquises = reussites_eleve["Code_UAA"].nunique()
+                    
+                    if nombre_uaa_acquises >= 6:
+                        st.balloons()
+                        st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a obtenu son Certificat de Qualification (CQ6) ! (6 UAA validées)")
+                        time.sleep(3.5) # On laisse le temps de voir les ballons avant de recharger !
+                    else:
+                        time.sleep(1) # Petit délai normal
+
                     st.rerun()
 
     with tab2:
@@ -414,29 +410,49 @@ else:
             st.dataframe(df_final[["Classe", "Code_UAA", "Resultat", "Date_Epreuve"]], hide_index=True)
             
             pdf_bytes = generate_pdf(eleve_pdf, df_final)
-            st.download_button("⬇️ PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf")
+            st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf")
             
             with st.expander("📧 Envoyer par mail"):
+                # NOUVEAUTÉ : Ajout du champ pour les parents
                 c_mail1, c_mail2 = st.columns(2)
-                email_stud = c_mail1.text_input("Destinataire", value=email_auto)
+                email_stud = c_mail1.text_input("Email de l'élève", value=email_auto)
+                email_parent = c_mail2.text_input("Email parents/tuteurs (facultatif)")
                 
-                if st.button("Envoyer"):
-                    sujet = f"Bulletin UAA - {eleve_pdf}"
-                    corps = f"Bonjour,\n\nVeuillez trouver ci-joint le relevé des notes pour {eleve_pdf}."
-                    if send_email_wrapper([email_stud], sujet, corps, pdf_bytes, f"Bulletin_{eleve_pdf}.pdf"):
-                        st.success(f"✅ Mail envoyé !")
+                if st.button("Envoyer le bulletin"):
+                    # On compte les réussites pour le texte du mail
+                    reussites_actuelles = df_final[df_final["Resultat"].astype(str).str.contains("Réussite")]
+                    nb_uaa = reussites_actuelles["Code_UAA"].nunique()
+                    
+                    # Message additionnel si CQ6 validé !
+                    cq6_message = ""
+                    if nb_uaa >= 6:
+                        cq6_message = "\n\n🎉 Excellente nouvelle ! Avec la validation de ces unités, l'élève a officiellement acquis les 6 UAA nécessaires et obtient son Certificat de Qualification (CQ6). Toutes nos félicitations !"
+
+                    # Textes améliorés
+                    sujet = f"Bilan d'avancement des Compétences (UAA) - {eleve_pdf}"
+                    corps = f"Bonjour,\n\nVoici le récapitulatif officiel de l'état d'avancement des Unités d'Acquis d'Apprentissage (UAA) pour {eleve_pdf} à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nBilan actuel :\n- Total des UAA validées (Acquises) : {nb_uaa} / 6{cq6_message}\n\nVous trouverez le détail complet dans le document PDF en pièce jointe.\n\nNous restons à votre entière disposition pour faire le point sur ces résultats.\n\nCordialement,\nL'équipe pédagogique."
+                    
+                    # Liste des destinataires
+                    destinataires = [email_stud]
+                    if email_parent.strip() != "":
+                        destinataires.append(email_parent.strip())
+
+                    if send_email_wrapper(destinataires, sujet, corps, pdf_bytes, f"Bulletin_{eleve_pdf}.pdf"):
+                        st.success(f"✅ Mail envoyé avec succès à {', '.join(destinataires)} !")
 
         st.divider()
         st.subheader("2. Rapport Global")
         pdf_global_bytes = generate_global_pdf(df)
-        st.download_button("⬇️ PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf")
+        st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf")
         
         email_rapport = st.text_input("Email prof/direction")
         if st.button("Envoyer Rapport"):
-            sujet = f"Rapport Global UAA - {datetime.now().strftime('%d/%m/%Y')}"
-            corps = "Bonjour,\n\nVoici le rapport global."
+            # Textes améliorés pour le global
+            sujet = f"Rapport Global UAA - Électriciens de maintenance - {datetime.now().strftime('%d/%m/%Y')}"
+            corps = f"Bonjour,\n\nVeuillez trouver ci-joint le récapitulatif global de l'état d'avancement des Compétences (UAA) pour l'ensemble des élèves actifs de l'option, arrêté à la date du {datetime.now().strftime('%d/%m/%Y')}.\n\nCordialement,\nL'application de gestion."
+            
             if send_email_wrapper([email_rapport], sujet, corps, pdf_global_bytes, "Rapport_Global.pdf"):
-                st.success("Envoyé !")
+                st.success("✅ Rapport envoyé à la direction !")
 
     with tab3:
         st.subheader("⚠️ Admin (Google Sheets)")
@@ -466,13 +482,9 @@ else:
 
         elif action == "Supprimer Ligne":
             st.dataframe(df)
-            idx = st.number_input("Index", min_value=0, max_value=len(df)-1, step=1)
-            if st.button("Supprimer"):
+            idx = st.number_input("Index de la ligne à supprimer", min_value=0, max_value=max(0, len(df)-1), step=1)
+            if st.button("Supprimer définitivement"):
                 df = df.drop(index=idx).reset_index(drop=True)
                 save_data(df)
-                st.success("Supprimé !")
+                st.success("Ligne supprimée !")
                 st.rerun()
-
-
-
-

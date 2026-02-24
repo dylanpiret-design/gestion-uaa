@@ -1,0 +1,15 @@
+name: Wake up Streamlit
+
+on:
+  schedule:
+    # Ce robot se lancera toutes les 6 heures (00h, 06h, 12h, 18h)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Permet de le lancer manuellement pour tester
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit App
+        run: |
+          curl -I https://gestion-uaa-hvdeb3jue3waa2dfiebnns.streamlit.app/

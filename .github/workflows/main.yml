@@ -1,15 +1,36 @@
-name: Wake up Streamlit
+name: Wake up Streamlit Advanced
 
 on:
   schedule:
-    # Ce robot se lancera toutes les 6 heures (00h, 06h, 12h, 18h)
-    - cron: '0 */6 * * *'
-  workflow_dispatch: # Permet de le lancer manuellement pour tester
+    # On le lance toutes les 4 heures pour être sûr
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
 
 jobs:
-  ping:
+  wake_up:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit App
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
         run: |
-          curl -I https://gestion-uaa-hvdeb3jue3waa2dfiebnns.streamlit.app/
+          npm install playwright
+          npx playwright install chromium
+
+      - name: Open App in Real Browser
+        run: |
+          node -e "
+          const { chromium } = require('playwright');
+          (async () => {
+            const browser = await chromium.launch();
+            const page = await browser.newPage();
+            console.log('Ouverture de l\'application...');
+            await page.goto('https://gestion-uaa-hvdeb3jue3waa2dfiebnns.streamlit.app', { waitUntil: 'networkidle' });
+            await page.waitForTimeout(5000); // On attend 5 secondes que le JS tourne
+            console.log('Page chargée avec succès !');
+            await browser.close();
+          })();
+          "

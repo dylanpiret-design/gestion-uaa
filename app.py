@@ -494,15 +494,18 @@ else:
             df_final = get_latest_results(df_historique)
             
             pdf_bytes = generate_pdf(eleve_pdf, df_final)
-            st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf", key="dl_pdf_indiv")
+            st.download_button("⬇️ Télécharger le PDF", pdf_bytes, f"Bulletin_{eleve_pdf}.pdf", "application/pdf", key=f"dl_pdf_indiv_{eleve_pdf}")
             
             with st.expander("📧 Envoyer par mail"):
                 st.caption("💡 *Astuce : Vous pouvez envoyer à plusieurs destinataires en séparant les adresses par une virgule (ex: parent1@mail.be, parent2@mail.be).*")
                 c_mail1, c_mail2 = st.columns(2)
-                email_stud = c_mail1.text_input("Email de l'élève", value=email_auto, key="email_stud_p3")
-                email_parent = c_mail2.text_input("Email(s) parents/tuteurs (facultatif)", key="email_parent_p3")
                 
-                if st.button("Envoyer le bulletin", key="btn_send_indiv"):
+                # --- CORRECTION DES CLÉS ICI ---
+                email_stud = c_mail1.text_input("Email de l'élève", value=email_auto, key=f"email_stud_p3_{eleve_pdf}")
+                email_parent = c_mail2.text_input("Email(s) parents/tuteurs (facultatif)", key=f"email_parent_p3_{eleve_pdf}")
+                # -------------------------------
+                
+                if st.button("Envoyer le bulletin", key=f"btn_send_indiv_{eleve_pdf}"):
                     reussites_actuelles = df_final[df_final["Resultat"].astype(str).str.contains("Réussite")]
                     nb_uaa = reussites_actuelles["Code_UAA"].nunique()
                     cq6_message = "\n\n🎉 Excellente nouvelle ! Avec la validation de ces unités, l'élève a officiellement acquis les 6 UAA nécessaires et obtient son Certificat de Qualification (CQ6). Toutes nos félicitations !" if nb_uaa >= 6 else ""

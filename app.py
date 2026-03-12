@@ -536,6 +536,12 @@ else:
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
         
         st.caption("💡 *Astuce : Séparez les adresses par une virgule pour l'envoyer à plusieurs directions/profs en même temps.*")
+
+        # --- NOUVEAU : Bouton pour pré-remplir les adresses ---
+        if st.button("👥 Pré-remplir l'équipe pédagogique"):
+            # On injecte les adresses directement dans la "mémoire" du champ texte
+            st.session_state["email_rapport_p3"] = "leslie.hubot@cnddinant.be,fabian.polet@cnddinant.be,francois.leclercq@cnddinant.be,dylan.piret@cnddinant.be"
+        
         email_rapport = st.text_input("Email(s) prof/direction", key="email_rapport_p3")
         
         if st.button("Envoyer Rapport", key="btn_send_global"):

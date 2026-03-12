@@ -235,7 +235,10 @@ def generate_global_pdf(df):
         else:
             pdf.set_font("Arial", 'B', 9)
             pdf.set_fill_color(240, 240, 240)
-            col_w = [20, 20, 110, 25, 15] 
+            
+            # --- CORRECTION DE LA LARGEUR DES COLONNES ICI ---
+            col_w = [18, 17, 110, 25, 20] 
+            
             headers = ["Classe", "UAA", "Description", "Resultat", "Date"]
             for i, h in enumerate(headers):
                 pdf.cell(col_w[i], 6, clean_text(h), 1, 0, 'C', 1)
@@ -254,10 +257,11 @@ def generate_global_pdf(df):
                     res_court = "NON ACQUIS"
                     color = (200, 0, 0)
 
+                # --- CORRECTION DU FORMAT DE LA DATE ICI ---
                 try:
-                    d_str = row['Date_Epreuve'].strftime('%d/%m')
+                    d_str = row['Date_Epreuve'].strftime('%d/%m/%Y')
                 except:
-                    d_str = str(row['Date_Epreuve'])[:5]
+                    d_str = str(row['Date_Epreuve'])[:10]
 
                 pdf.cell(col_w[0], 6, clean_text(str(row['Classe'])[:3]), 1, 0, 'C')
                 pdf.cell(col_w[1], 6, clean_text(row['Code_UAA']), 1, 0, 'C')

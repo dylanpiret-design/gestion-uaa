@@ -57,8 +57,7 @@ def normalize_email_text(text):
     return text
 
 def get_latest_results(df_eleve):
-    if df_eleve.empty:
-        return df_eleve
+    if df_eleve.empty: return df_eleve
     df_eleve = df_eleve.copy()
     df_eleve['Date_Epreuve'] = pd.to_datetime(df_eleve['Date_Epreuve'], errors='coerce')
     df_sorted = df_eleve.sort_values(by="Date_Epreuve", ascending=False)
@@ -86,15 +85,14 @@ def get_student_substeps(df, nom_eleve):
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     try:
-        df = conn.read(worksheet="Resultats", ttl=0)
+        # On utilise "Data" comme dans ton code original
+        df = conn.read(worksheet="Data", ttl=0)
         if df.empty:
-             return pd.DataFrame()
+             return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5"])
         df = df.dropna(how="all")
         df['Date_Epreuve'] = pd.to_datetime(df['Date_Epreuve'], errors='coerce')
-        if 'Statut' not in df.columns:
-            df['Statut'] = 'Actif'
-        else:
-            df['Statut'] = df['Statut'].fillna('Actif')
+        if 'Statut' not in df.columns: df['Statut'] = 'Actif'
+        else: df['Statut'] = df['Statut'].fillna('Actif')
         return df
     except Exception:
         return pd.DataFrame()
@@ -111,19 +109,18 @@ def save_data(df):
     df_to_save = df_to_save.fillna("")
     df_to_save = df_to_save.astype(str)
     try:
-        conn.update(worksheet="Resultats", data=df_to_save)
+        conn.update(worksheet="Data", data=df_to_save)
         st.cache_data.clear()
     except Exception as e:
         st.error(f"Erreur d'écriture Google Sheets : {e}")
         st.stop()
 
-# --- CLASSE PDF ---
+# --- CLASSE PDF & MAILS ---
+
 class PDF(FPDF):
     def header(self):
-        try:
-            self.image(LOGO_PATH, x=10, y=8, w=30)
-        except:
-            pass 
+        try: self.image(LOGO_PATH, x=10, y=8, w=30)
+        except: pass 
         self.ln(20)
     def footer(self):
         self.set_y(-55)
@@ -137,8 +134,7 @@ class PDF(FPDF):
         for annee, uaas in PROGRAMME.items():
             for code, desc in uaas.items():
                 desc_courte = desc[:110] + "..." if len(desc) > 110 else desc
-                texte = f"[{annee}] {code} : {desc_courte}"
-                self.cell(0, 3.5, clean_text(texte), 0, 1, 'L')
+                self.cell(0, 3.5, clean_text(f"[{annee}] {code} : {desc_courte}"), 0, 1, 'L')
         self.set_y(-10)
         self.set_font("Arial", 'I', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
@@ -150,76 +146,25 @@ def generate_pdf(nom_eleve, df_eleve_filtered):
     pdf.set_y(30)
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, clean_text(f"Suivi des UAA - {nom_eleve}"), ln=True, align='C')
-    pdf.set_font("Arial", 'I', 12)
-    pdf.cell(0, 10, clean_text(NOM_OPTION), ln=True, align='C')
     pdf.ln(5)
     pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 10, clean_text(f"Date du document : {datetime.now().strftime('%d/%m/%Y')}"), ln=True)
+    pdf.cell(0, 10, clean_text(f"Date : {datetime.now().strftime('%d/%m/%Y')}"), ln=True)
     pdf.ln(2)
-    reussites = df_eleve_filtered[df_eleve_filtered["Resultat"].astype(str).str.contains("Réussite")]
-    if reussites["Code_UAA"].nunique() >= 6:
-        pdf.set_font("Arial", 'B', 11)
-        pdf.set_text_color(0, 128, 0)
-        pdf.cell(0, 10, clean_text("*** CERTIFICAT DE QUALIFICATION (CQ6) OBTENU ***"), ln=True, align='C')
-        pdf.set_text_color(0, 0, 0)
     pdf.set_fill_color(230, 230, 230)
     pdf.set_font("Arial", 'B', 9)
     col_w = [15, 15, 115, 20, 25]
-    headers = ["Annee", "UAA", "Description", "Resultat", "Date"]
-    for i, h in enumerate(headers):
-        pdf.cell(col_w[i], 10, clean_text(h), 1, 0, 'C', 1)
+    for h, w in zip(["Annee", "UAA", "Description", "Resultat", "Date"], col_w):
+        pdf.cell(w, 10, clean_text(h), 1, 0, 'C', 1)
     pdf.ln()
     pdf.set_font("Arial", '', 8)
-    for index, row in df_eleve_filtered.iterrows():
-        classe = clean_text(str(row['Classe'])[:3])
-        code = clean_text(row['Code_UAA'])
-        desc = clean_text(row['Description_UAA'])[:75] + "..." if len(row['Description_UAA']) > 75 else clean_text(row['Description_UAA'])
-        res_court = "Acquis" if "Réussite" in str(row['Resultat']) else "Non Acquis"
-        color = (0, 128, 0) if "Réussite" in str(row['Resultat']) else (200, 0, 0)
-        date_str = row['Date_Epreuve'].strftime('%d/%m/%Y') if hasattr(row['Date_Epreuve'], 'strftime') else str(row['Date_Epreuve'])[:10]
-        pdf.cell(col_w[0], 10, classe, 1)
-        pdf.cell(col_w[1], 10, code, 1)
-        pdf.cell(col_w[2], 10, desc, 1)
-        pdf.set_text_color(*color)
-        pdf.cell(col_w[3], 10, clean_text(res_court), 1, 0, 'C')
-        pdf.set_text_color(0, 0, 0)
-        pdf.cell(col_w[4], 10, date_str, 1, 1, 'C')
-    return pdf.output(dest='S').encode('latin-1')
-
-def generate_global_pdf(df):
-    pdf = PDF()
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    pdf.set_y(30)
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, clean_text("Rapport Global - Situation des Élèves"), ln=True, align='C')
-    pdf.ln(10)
-    df_actifs = df[df["Statut"] != "Archivé"]
-    eleves = sorted(df_actifs["Nom_Prenom"].unique())
-    for eleve in eleves:
-        if pdf.get_y() > 220: pdf.add_page()
-        sub_df = get_latest_results(df[df["Nom_Prenom"] == eleve])
-        pdf.set_font("Arial", 'B', 12)
-        pdf.set_fill_color(220, 230, 255)
-        pdf.cell(0, 8, clean_text(f"Élève : {eleve}"), 1, 1, 'L', 1)
-        if sub_df.empty:
-            pdf.set_font("Arial", 'I', 10)
-            pdf.cell(0, 8, clean_text("Aucun résultat."), 1, 1)
-        else:
-            pdf.set_font("Arial", 'B', 8)
-            col_w = [18, 17, 110, 25, 20]
-            for i, h in enumerate(["Classe", "UAA", "Desc", "Res", "Date"]):
-                pdf.cell(col_w[i], 6, clean_text(h), 1, 0, 'C', 1)
-            pdf.ln()
-            pdf.set_font("Arial", '', 7)
-            for _, row in sub_df.iterrows():
-                pdf.cell(col_w[0], 6, clean_text(str(row['Classe'])[:3]), 1)
-                pdf.cell(col_w[1], 6, clean_text(row['Code_UAA']), 1)
-                pdf.cell(col_w[2], 6, clean_text(row['Description_UAA'][:70]), 1)
-                pdf.cell(col_w[3], 6, "OK" if "Réussite" in str(row['Resultat']) else "KO", 1)
-                date_s = row['Date_Epreuve'].strftime('%d/%m/%Y') if hasattr(row['Date_Epreuve'], 'strftime') else str(row['Date_Epreuve'])[:10]
-                pdf.cell(col_w[4], 6, date_s, 1, 1)
-        pdf.ln(5)
+    for _, row in df_eleve_filtered.iterrows():
+        pdf.cell(col_w[0], 10, clean_text(str(row['Classe'])[:3]), 1)
+        pdf.cell(col_w[1], 10, clean_text(row['Code_UAA']), 1)
+        pdf.cell(col_w[2], 10, clean_text(row['Description_UAA'][:75]), 1)
+        res = "Acquis" if "Réussite" in str(row['Resultat']) else "Non Acquis"
+        pdf.cell(col_w[3], 10, clean_text(res), 1)
+        d_s = row['Date_Epreuve'].strftime('%d/%m/%Y') if hasattr(row['Date_Epreuve'], 'strftime') else str(row['Date_Epreuve'])[:10]
+        pdf.cell(col_w[4], 10, d_s, 1, 1)
     return pdf.output(dest='S').encode('latin-1')
 
 def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_name=None):
@@ -231,7 +176,7 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         msg['To'] = ", ".join(destinataires_list)
         msg['Subject'] = sujet
         msg.attach(MIMEText(corps, 'plain', 'utf-8'))
-        if pdf_bytes and pdf_name:
+        if pdf_bytes:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(pdf_bytes)
             encoders.encode_base64(part)
@@ -250,7 +195,7 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
 def send_badge_email(email_dest, nom_eleve, badge_key):
     badge = BADGES_CONFIG[badge_key]
     sujet = f"🏆 Badge débloqué : {badge['titre']}"
-    corps = f"Bravo {nom_eleve} !\n\nTu as validé une étape de l'UAA 1. Voici ton badge :\n👉 {badge['lien']}\n\nL'équipe pédagogique."
+    corps = f"Bravo {nom_eleve} !\n\nTu as validé une étape. Voici ton badge :\n👉 {badge['lien']}"
     return send_email_wrapper([email_dest], sujet, corps)
 
 # --- UI ---
@@ -294,52 +239,44 @@ else:
                 key = f"UAA1_SI{i}"
                 val_si[key] = cols[i-1].checkbox(f"SI {i}", value=current_si[key], disabled=current_si[key])
 
-        st.divider()
-        
-        # --- VERROU PÉDAGOGIQUE ---
-        # L'UAA1 ne peut être validée QUE si les 5 badges sont acquis (déjà acquis OU cochés à l'instant)
-        pret_pour_uaa1 = all(val_si[k] or current_si[k] for k in val_si) if code_choisi == "UAA 1" else True
+        # --- VERROU ---
+        pret_uaa1 = all(val_si[k] or current_si[k] for k in val_si) if code_choisi == "UAA 1" else True
         
         c3, c4 = st.columns(2)
         date_ep = c3.date_input("Date", datetime.today())
         
-        if code_choisi == "UAA 1" and not pret_pour_uaa1:
-            st.warning("⚠️ L'UAA 1 ne peut être validée qu'une fois les 5 sous-étapes (SI) complétées.")
+        if code_choisi == "UAA 1" and not pret_uaa1:
+            st.warning("⚠️ Complétez les 5 SI pour valider l'UAA 1.")
             res = c4.radio("Résultat", ["En cours"], disabled=True)
         else:
             res = c4.radio("Résultat", ["En cours", "Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
 
-        if st.button("💾 Sauvegarder & Envoyer Badges", type="primary"):
+        if st.button("💾 Sauvegarder", type="primary"):
             if nom_eleve:
                 email_eleve = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
                 new_row = {"Nom_Prenom": nom_eleve, "Classe": classe, "Code_UAA": code_choisi, "Description_UAA": desc, "Date_Epreuve": pd.to_datetime(date_ep), "Resultat": res, "Statut": "Actif"}
                 
-                badges_envoyes = 0
                 if code_choisi == "UAA 1":
                     for k, v in val_si.items():
-                        new_row[k] = "Oui" if v else ("Oui" if current_si[k] else "")
-                        if v and not current_si[k]: # Nouveau badge coché
-                            if send_badge_email(email_eleve, nom_eleve, k): badges_envoyes += 1
-                    
-                    if res == "Réussite (Acquis)":
-                        send_badge_email(email_eleve, nom_eleve, "UAA1_FINAL")
+                        new_row[k] = "Oui" if (v or current_si[k]) else ""
+                        if v and not current_si[k]: send_badge_email(email_eleve, nom_eleve, k)
+                    if res == "Réussite (Acquis)": send_badge_email(email_eleve, nom_eleve, "UAA1_FINAL")
                 
                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                 save_data(df)
-                st.success(f"Enregistré ! {badges_envoyes} badge(s) envoyé(s).")
+                st.success("Enregistré !")
                 time.sleep(1)
                 st.rerun()
 
     elif page_actuelle == "📊 Dashboard":
         st.subheader("📊 Dashboard")
-        if len(existing_students) > 0:
-            sel_eleve = st.selectbox("Détail par élève", ["Tous"] + existing_students)
+        if not df_actifs.empty:
+            sel_eleve = st.selectbox("Élève", ["Tous"] + existing_students)
             if sel_eleve != "Tous":
                 st.markdown(f"### Badges de {sel_eleve}")
                 states = get_student_substeps(df, sel_eleve)
                 uaa1_ok = not df[(df["Nom_Prenom"] == sel_eleve) & (df["Code_UAA"] == "UAA 1") & (df["Resultat"].str.contains("Réussite"))].empty
                 states["UAA1_FINAL"] = uaa1_ok
-                
                 cols = st.columns(6)
                 for i, (k, info) in enumerate(BADGES_CONFIG.items()):
                     with cols[i]:
@@ -347,28 +284,20 @@ else:
                             if os.path.exists(info["image"]): st.image(info["image"], caption=info["titre"])
                             else: st.success(f"✅ {info['titre']}")
                         else: st.markdown(f"<div style='text-align:center;font-size:30px;filter:grayscale(1);'>🔒<br><span style='font-size:10px;'>{info['titre']}</span></div>", unsafe_allow_html=True)
-            
-            st.divider()
             st.dataframe(df_actifs[["Nom_Prenom", "Classe", "Code_UAA", "Resultat", "Date_Epreuve"]].sort_values("Date_Epreuve", ascending=False), use_container_width=True)
 
     elif page_actuelle == "📧 Bulletins":
-        st.subheader("📧 Bulletins & Rapports")
+        st.subheader(" Bulletins")
         eleve = st.selectbox("Élève", existing_students)
         if eleve:
             df_b = get_latest_results(df[df["Nom_Prenom"] == eleve])
             pdf = generate_pdf(eleve, df_b)
-            st.download_button("⬇️ Télécharger Bulletin", pdf, f"Bulletin_{eleve}.pdf")
-            
-        st.divider()
-        st.subheader("Rapport Global Direction")
-        pdf_g = generate_global_pdf(df)
-        st.download_button("⬇️ Rapport Global", pdf_g, "Rapport_Global.pdf")
+            st.download_button("⬇️ Télécharger", pdf, f"Bulletin_{eleve}.pdf")
 
     elif page_actuelle == "⚙️ Admin":
-        st.subheader("⚙️ Administration")
-        if st.checkbox("Afficher la base de données brute"):
-            st.write(df)
-        if st.button("Archiver un élève"):
+        st.subheader("⚙️ Admin")
+        if st.checkbox("Base brute"): st.write(df)
+        if st.button("Archiver"):
             e_arc = st.selectbox("Qui ?", existing_students)
             df.loc[df["Nom_Prenom"] == e_arc, "Statut"] = "Archivé"
             save_data(df)

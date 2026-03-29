@@ -674,3 +674,60 @@ else:
         df_pdf_global = df[~df["Code_UAA"].str.contains("Profil", na=False)]
         pdf_global_bytes = generate_global_pdf(df_pdf_global)
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
+
+# ==========================================
+# PAGE 4 : ADMIN
+# ==========================================
+    elif page_actuelle == "⚙️ Admin":
+        st.subheader("⚙️ Administration & Base de Données")
+        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"], key="admin_action_radio")
+        
+        if action == "Renommer un élève":
+            if existing_students:
+                st.info("Cette action modifiera le nom de l'élève sur l'ensemble de ses enregistrements.")
+                old_name = st.selectbox("Sélectionnez l'élève à renommer", existing_students, key="rename_old_p4")
+                new_name = st.text_input("Entrez le nouveau nom (Prénom Nom)", key="rename_new_p4")
+                
+                if st.button("Valider le nouveau nom", type="primary", key="btn_rename"):
+                    if new_name.strip() == "":
+                        st.error("Le nouveau nom ne peut pas être vide.")
+                    else:
+                        df.loc[df["Nom_Prenom"] == old_name, "Nom_Prenom"] = new_name.strip()
+                        save_data(df)
+                        st.success(f"✅ {old_name} a été renommé en {new_name.strip()} !")
+                        time.sleep(1)
+                        st.rerun()
+
+        elif action == "Archiver":
+            if existing_students:
+                eleve_to_arch = st.selectbox("Élève", existing_students, key="archive_eleve_p4")
+                if st.button(f"Archiver {eleve_to_arch}", key="btn_archive"):
+                    df.loc[df["Nom_Prenom"] == eleve_to_arch, "Statut"] = "Archivé"
+                    save_data(df)
+                    st.success("Fait !")
+                    time.sleep(1)
+                    st.rerun()
+
+        elif action == "Restaurer":
+            df_archives = df[df["Statut"] == "Archivé"]
+            eleves_arch = df_archives["Nom_Prenom"].unique().tolist()
+            if eleves_arch:
+                e = st.selectbox("Restaurer qui ?", eleves_arch, key="restore_eleve_p4")
+                if st.button("Restaurer", key="btn_restore"):
+                    df.loc[df["Nom_Prenom"] == e, "Statut"] = "Actif"
+                    save_data(df)
+                    st.success("Restauré !")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.info("Personne dans les archives.")
+
+        elif action == "Supprimer Ligne":
+            st.dataframe(df)
+            idx = st.number_input("Index de la ligne à supprimer", min_value=0, max_value=max(0, len(df)-1), step=1, key="delete_idx_p4")
+            if st.button("Supprimer définitivement", type="primary", key="btn_delete_line"):
+                df = df.drop(index=idx).reset_index(drop=True)
+                save_data(df)
+                st.success("Ligne supprimée !")
+                time.sleep(1)
+                st.rerun()

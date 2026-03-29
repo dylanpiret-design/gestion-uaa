@@ -17,11 +17,9 @@ NOM_OPTION = "Electricien(ne) de maintenance industrielle"
 DOMAIN_ECOLE = "@cnddinant.be"
 LOGO_PATH = "logo.png"
 
-# 👇 À MODIFIER : Indique ton compte et ton repo GitHub ici 👇
-GITHUB_COMPTE = "VOTRE_COMPTE" 
-GITHUB_REPO = "VOTRE_REPO"
-# -----------------------------------------------------------
-
+# Configuration GitHub automatique pour les images des badges
+GITHUB_COMPTE = "dylanpiret-design" 
+GITHUB_REPO = "gestion-uaa"
 GITHUB_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_COMPTE}/{GITHUB_REPO}/main/"
 
 # Programme
@@ -42,11 +40,31 @@ PROGRAMME = {
 
 # --- BADGES UAA1 ---
 BADGES_UAA1 = {
-    "UAA1_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA1_SI1.png"},
-    "UAA1_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA1_SI2.png"},
-    "UAA1_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8nvn99", "nom": "SI3 : Remplacement d'un composant électrique + règles de sécurité / ergonomiques / environnementales", "img": GITHUB_BASE_URL + "logo_UAA1_SI3.png"},
-    "UAA1_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=4kx8cy", "nom": "SI4 : Remise en service et réglage", "img": GITHUB_BASE_URL + "logo_UAA1_SI4.png"},
-    "UAA1_SI5": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=mzphq6", "nom": "SI5 : Clôture de l'intervention", "img": GITHUB_BASE_URL + "logo_UAA1_SI5.png"}
+    "UAA1_SI1": {
+        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", 
+        "nom": "SI1 : Préparation de l'intervention de maintenance", 
+        "img": GITHUB_BASE_URL + "logo_UAA1_SI1.png"
+    },
+    "UAA1_SI2": {
+        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", 
+        "nom": "SI2 : LMRA - Consignation - Déconsignation", 
+        "img": GITHUB_BASE_URL + "logo_UAA1_SI2.png"
+    },
+    "UAA1_SI3": {
+        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=8nvn99", 
+        "nom": "SI3 : Remplacement d'un composant électrique + règles de sécurité / ergonomiques / environnementales", 
+        "img": GITHUB_BASE_URL + "logo_UAA1_SI3.png"
+    },
+    "UAA1_SI4": {
+        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=4kx8cy", 
+        "nom": "SI4 : Remise en service et réglage", 
+        "img": GITHUB_BASE_URL + "logo_UAA1_SI4.png"
+    },
+    "UAA1_SI5": {
+        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=mzphq6", 
+        "nom": "SI5 : Clôture de l'intervention", 
+        "img": GITHUB_BASE_URL + "logo_UAA1_SI5.png"
+    }
 }
 LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=h5vr9v"
 IMG_UAA1 = GITHUB_BASE_URL + "logo_UAA1.png"
@@ -453,10 +471,12 @@ else:
                             st.write("🖼️") # Fallback si l'image ne charge pas
                             
                         if status[col_badge]:
-                            st.success(f"✅ {info['nom']}")
+                            st.success(f"✅ Acquis")
+                            st.caption(info['nom'])
                         else:
-                            if st.checkbox(f"Valider {info['nom']}", key=f"chk_{col_badge}"):
+                            if st.checkbox(f"Valider", key=f"chk_{col_badge}"):
                                 nouvelles_validations.append(col_badge)
+                            st.caption(info['nom'])
 
                 if nouvelles_validations:
                     if st.button("💾 Enregistrer et envoyer les badges", type="primary"):

@@ -340,14 +340,22 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
-def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
+def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, est_uaa_finale=False):
     destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
-    sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge}"
     
+    if est_uaa_finale:
+        sujet = f"🏆 FÉLICITATIONS ! Tu as validé l'intégralité de l'{nom_badge}"
+        label_entete = f"L'intégralité de l'<strong>{nom_badge}</strong> est validée !"
+        texte_intro = "C'est une étape majeure ! Tu as réussi l'épreuve de validation finale :"
+    else:
+        sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge}"
+        label_entete = f"Félicitations {nom_eleve} !"
+        texte_intro = "Suite à ton évaluation, tu as brillamment obtenu le badge numérique :"
+
     corps_html = f"""
     <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-      <h2 style="color: #2c3e50;">Félicitations {nom_eleve} !</h2>
-      <p>Suite à ton évaluation, tu as brillamment obtenu le badge numérique :</p>
+      <h2 style="color: #2c3e50;">{label_entete}</h2>
+      <p>{texte_intro}</p>
       
       <div style="text-align: center; margin: 20px 0;">
           <img src="{img_badge}" alt="{nom_badge}" style="max-width: 150px; border-radius: 10px;">
@@ -360,22 +368,21 @@ def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
       
       <h3 style="color: #2c3e50;">Comment récupérer et sauvegarder ton badge ?</h3>
       
-      <p>La procédure a été simplifiée, tout se passe au même endroit :</p>
+      <p>La procédure est la même que pour tes badges précédents :</p>
       <ol>
         <li>Clique sur le bouton ci-dessous pour réclamer ton badge : <br>
             <a href="{url_badge}" style="display: inline-block; margin-top: 10px; margin-bottom: 10px; padding: 10px 15px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px;">Réclamer mon badge</a>
         </li>
-        <li>Connecte-toi (ou crée un compte gratuit en 1 minute) sur la plateforme <strong>Badgecraft</strong> en utilisant ton adresse e-mail.</li>
+        <li>Connecte-toi à ton compte <strong>Badgecraft</strong>.</li>
         <li>Accepte ton badge !</li>
       </ol>
 
-      <p>Et c'est tout ! Ton badge est maintenant stocké de manière sécurisée dans ton "Portefeuille" sur Badgecraft. Tu pourras y retourner à tout moment pour le consulter.</p>
+      <p>Et c'est tout ! Ton badge est maintenant stocké de manière sécurisée dans ton "Portefeuille" sur Badgecraft.</p>
       
       <p>Continue sur cette belle lancée !</p>
       <p><em>L'équipe pédagogique</em></p>
     </div>
     """
-    
     send_email_wrapper([destinataire], sujet, corps_html, mime_type='html')
 
 # --- UI PRINCIPALE ---
@@ -444,7 +451,6 @@ else:
             if type_saisie == "🥇 Validation de Badges (Prérequis SI)":
                 st.info("Validez ici les sous-compétences (SI) requises avant le passage de l'UAA 1. Un email contenant le lien du badge sera automatiquement envoyé à l'élève.")
                 
-                # Obtenir le statut actuel pour cet élève
                 status = {}
                 for col in BADGES_UAA1.keys():
                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
@@ -458,11 +464,10 @@ else:
                 cols = st.columns(5)
                 for i, (col_badge, info) in enumerate(BADGES_UAA1.items()):
                     with cols[i]:
-                        # Affichage de la miniature de l'image Github
                         try:
                             st.image(info["img"], width=80)
                         except:
-                            st.write("🖼️") # Fallback si l'image ne charge pas
+                            st.write("🖼️")
                             
                         if status[col_badge]:
                             st.success(f"✅ Acquis")
@@ -474,16 +479,13 @@ else:
 
                 if nouvelles_validations:
                     if st.button("💾 Enregistrer et envoyer les badges", type="primary"):
-                        # Si l'élève est totalement nouveau, on lui crée une ligne de profil
                         if df.empty or nom_eleve not in df["Nom_Prenom"].values:
                             new_row = {"Nom_Prenom": nom_eleve, "Classe": "", "Code_UAA": "Profil", "Description_UAA": "Création profil pour badges", "Date_Epreuve": pd.to_datetime(datetime.today()), "Resultat": "", "Statut": "Actif"}
                             for b in BADGES_UAA1.keys(): new_row[b] = ""
                             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
-                        # Mettre à jour "Acquis" pour toutes les lignes existantes de cet élève
                         for b in nouvelles_validations:
                             df.loc[df["Nom_Prenom"] == nom_eleve, b] = "Acquis"
-                            # Envoi avec l'image
                             send_badge_email(nom_eleve, BADGES_UAA1[b]['nom'], BADGES_UAA1[b]['url'], BADGES_UAA1[b]['img'])
 
                         save_data(df)
@@ -499,22 +501,18 @@ else:
                 desc = PROGRAMME[classe][code_choisi]
                 st.info(f"**Compétence visée :** {desc}")
 
-                # --- VÉRIFICATION DES PRÉREQUIS (BADGES) AVANT ENCODAGE ---
                 badges_manquants = False
-                if code_choisi == "UAA 1": # À adapter si d'autres UAA ont des badges dans le futur
+                if code_choisi == "UAA 1": 
                     if mode_eleve == "Existant" and not df.empty and nom_eleve in df["Nom_Prenom"].values:
-                        # On vérifie si l'élève a "Acquis" pour tous les badges de l'UAA 1
                         status_uaa1 = [df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any() for b in BADGES_UAA1.keys()]
                         if not all(status_uaa1):
                             badges_manquants = True
                     else:
-                        # S'il est nouveau ou n'a aucune ligne, il n'a d'office pas les badges
                         badges_manquants = True
 
                 if badges_manquants:
                     st.error(f"🔒 Action bloquée : Impossible d'encoder un résultat pour l'{code_choisi}. L'élève **{nom_eleve}** doit d'abord valider tous les badges prérequis de cette UAA.")
                 else:
-                    # Si les badges sont OK (ou s'il n'y a pas de badges requis pour cette UAA), on continue
                     deja_reussi = False
                     date_reussite_str = ""
                     
@@ -539,9 +537,9 @@ else:
                             if not date_ep:
                                 st.error("❌ Oups ! Veuillez définir une date valide.")
                             else:
-                                # Envoi automatique du badge global UAA si c'est une réussite (exemple pour l'UAA 1)
+                                # --- ENVOI MAIL BADGE UAA1 FINAL SI RÉUSSITE ---
                                 if code_choisi == "UAA 1" and "Réussite" in res:
-                                    send_badge_email(nom_eleve, "UAA 1", LIEN_UAA1, IMG_UAA1)
+                                    send_badge_email(nom_eleve, "UAA 1", LIEN_UAA1, IMG_UAA1, est_uaa_finale=True)
 
                                 date_to_save = pd.to_datetime(date_ep)
                                 new_row = {
@@ -555,14 +553,12 @@ else:
                                 }
                                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                                 
-                                # On répercute les badges existants sur cette nouvelle ligne pour que le GSheet reste propre
                                 for b in BADGES_UAA1.keys():
                                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
                                         if df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any():
                                             df.loc[df.index[-1], b] = "Acquis"
 
                                 save_data(df)
-                                
                                 st.toast('✅ Encodage enregistré avec succès !')
                                 
                                 reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
@@ -583,7 +579,6 @@ else:
         else:
             col_f1, col_f2 = st.columns(2)
             classes_uniques = df_actifs["Classe"].unique().tolist()
-            # On retire les classes vides (créées potentiellement pour les profils badges nus)
             classes_uniques = [c for c in classes_uniques if str(c).strip() != ""] 
             
             filtre_classe = col_f1.multiselect("Filtrer par Classe", classes_uniques, default=classes_uniques, key="dash_f_classe")
@@ -593,7 +588,6 @@ else:
             if filtre_eleve:
                 df_filtered = df_filtered[df_filtered["Nom_Prenom"].isin(filtre_eleve)]
 
-            # Pour les métriques, on exclut les lignes "Profil" (celles juste pour les badges)
             df_eval = df_filtered[~df_filtered["Code_UAA"].str.contains("Profil", na=False)]
 
             nb_eleves = df_eval["Nom_Prenom"].nunique()
@@ -642,7 +636,6 @@ else:
         
         if eleve_pdf:
             email_auto = normalize_email_text(eleve_pdf) + DOMAIN_ECOLE
-            # On ignore les lignes de "profil" pour les pdf
             df_historique = df[(df["Nom_Prenom"] == eleve_pdf) & (~df["Code_UAA"].str.contains("Profil", na=False))].copy()
             df_final = get_latest_results(df_historique)
             
@@ -675,14 +668,10 @@ else:
 
         st.divider()
         st.subheader("2. Rapport Global")
-        # On exclut les lignes de Profil de la génération PDF Globale
         df_pdf_global = df[~df["Code_UAA"].str.contains("Profil", na=False)]
         pdf_global_bytes = generate_global_pdf(df_pdf_global)
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
 
-# ==========================================
-# PAGE 4 : ADMIN
-# ==========================================
     elif page_actuelle == "⚙️ Admin":
         st.subheader("⚙️ Administration & Base de Données")
         action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"], key="admin_action_radio")

@@ -33,6 +33,16 @@ PROGRAMME = {
     }
 }
 
+# --- BADGES UAA1 ---
+BADGES_UAA1 = {
+    "UAA1_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", "nom": "UAA1 - SI1"},
+    "UAA1_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", "nom": "UAA1 - SI2"},
+    "UAA1_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8nvn99", "nom": "UAA1 - SI3"},
+    "UAA1_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=4kx8cy", "nom": "UAA1 - SI4"},
+    "UAA1_SI5": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=mzphq6", "nom": "UAA1 - SI5"}
+}
+LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=h5vr9v"
+
 # --- FONCTIONS UTILITAIRES ---
 
 def clean_text(text):
@@ -65,10 +75,11 @@ def colorer_lignes(row):
 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
+    colonnes_base = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5"]
     try:
         df = conn.read(worksheet="Data", ttl=0)
         if df.empty:
-            return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
+            return pd.DataFrame(columns=colonnes_base)
         df = df.dropna(how="all")
         df['Date_Epreuve'] = pd.to_datetime(df['Date_Epreuve'], errors='coerce')
         if 'Statut' not in df.columns:
@@ -77,12 +88,13 @@ def load_data():
             df['Statut'] = df['Statut'].fillna('Actif')
         return df
     except Exception:
-        return pd.DataFrame(columns=["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"])
+        return pd.DataFrame(columns=colonnes_base)
 
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
     df_to_save = df.copy()
-    colonnes_obligatoires = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut"]
+    colonnes_obligatoires = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5"]
+    
     for col in colonnes_obligatoires:
         if col not in df_to_save.columns:
             df_to_save[col] = ""
@@ -302,6 +314,12 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
+def send_badge_email(nom_eleve, nom_badge, url_badge):
+    destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
+    sujet = f"🏆 Nouveau badge obtenu : {nom_badge}"
+    corps = f"Bonjour {nom_eleve},\n\nFélicitations ! Tu as validé la compétence : {nom_badge}.\n\nTu peux dès à présent réclamer ton badge officiel dans ton Open Badge Passport en cliquant sur le lien suivant :\n{url_badge}\n\nContinue sur cette belle lancée !\n\nL'équipe pédagogique."
+    send_email_wrapper([destinataire], sujet, corps)
+
 # --- UI PRINCIPALE ---
 
 st.set_page_config(page_title="Encodage UAA", page_icon="⚡", layout="wide")
@@ -347,7 +365,7 @@ else:
     existing_students.sort()
 
     if page_actuelle == "📝 Encodage":
-        st.subheader("Nouvel encodage")
+        st.subheader("📝 Nouvel encodage")
         
         mode_eleve = st.radio("Élève :", ["Existant", "Nouveau"], horizontal=True, key="mode_eleve_radio")
         nom_eleve = ""
@@ -360,65 +378,128 @@ else:
         else:
             nom_eleve = st.text_input("Nom du nouvel élève (Prénom Nom)", key="input_new_p1").strip()
 
-        st.divider()
+        if nom_eleve:
+            st.divider()
+            
+            type_saisie = st.radio("Que souhaitez-vous faire ?", ["🥇 Validation de Badges (Prérequis SI)", "🎓 Résultat d'une épreuve (UAA)"], horizontal=True)
 
-        c1, c2 = st.columns(2)
-        classe = c1.selectbox("Année", list(PROGRAMME.keys()))
-        codes_uaa = list(PROGRAMME[classe].keys())
-        code_choisi = c2.selectbox("UAA", codes_uaa)
-        desc = PROGRAMME[classe][code_choisi]
-        st.info(f"**Compétence visée :** {desc}")
-
-        deja_reussi = False
-        date_reussite_str = ""
-        
-        if mode_eleve == "Existant" and nom_eleve and not df.empty:
-            mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite", na=False))
-            df_deja = df[mask]
-            if not df_deja.empty:
-                deja_reussi = True
-                try:
-                    date_reussite_str = pd.to_datetime(df_deja.iloc[0]["Date_Epreuve"]).strftime('%d/%m/%Y')
-                except:
-                    date_reussite_str = str(df_deja.iloc[0]["Date_Epreuve"])[:10]
-
-        if deja_reussi:
-            st.error(f"🔒 Action bloquée : **{nom_eleve}** a déjà validé l'**{code_choisi}** le {date_reussite_str}. Nouvel encodage impossible.")
-        else:
-            c3, c4 = st.columns(2)
-            date_ep = c3.date_input("Date de l'épreuve", datetime.today())
-            res = c4.radio("Résultat obtenu", ["Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
-
-            if st.button("💾 Sauvegarder le résultat", type="primary"):
-                if not nom_eleve:
-                    st.error("❌ Oups ! Veuillez renseigner le nom de l'élève avant de sauvegarder.")
-                elif not date_ep:
-                    st.error("❌ Oups ! Veuillez définir une date valide.")
-                else:
-                    date_to_save = pd.to_datetime(date_ep)
-                    new_row = {
-                        "Nom_Prenom": nom_eleve, 
-                        "Classe": classe, 
-                        "Code_UAA": code_choisi, 
-                        "Description_UAA": desc, 
-                        "Date_Epreuve": date_to_save, 
-                        "Resultat": res,
-                        "Statut": "Actif"
-                    }
-                    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                    save_data(df)
-                    
-                    st.toast('✅ Encodage enregistré avec succès !')
-                    
-                    reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
-                    if reussites_eleve["Code_UAA"].nunique() >= 6:
-                        st.balloons()
-                        st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
-                        time.sleep(3)
+            if type_saisie == "🥇 Validation de Badges (Prérequis SI)":
+                st.info("Validez ici les sous-compétences (SI) requises avant le passage de l'UAA 1. Un email contenant le lien du badge sera automatiquement envoyé à l'élève.")
+                
+                # Obtenir le statut actuel pour cet élève
+                status = {}
+                for col in BADGES_UAA1.keys():
+                    if not df.empty and nom_eleve in df["Nom_Prenom"].values:
+                        status[col] = df.loc[df["Nom_Prenom"] == nom_eleve, col].astype(str).str.contains("Acquis").any()
                     else:
-                        st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
-                    time.sleep(1)
-                    st.rerun()
+                        status[col] = False
+
+                st.write(f"**Badges UAA 1 pour {nom_eleve} :**")
+                nouvelles_validations = []
+
+                cols = st.columns(5)
+                for i, (col_badge, info) in enumerate(BADGES_UAA1.items()):
+                    with cols[i]:
+                        if status[col_badge]:
+                            st.success(f"✅ {info['nom']}")
+                        else:
+                            if st.checkbox(f"Valider {info['nom']}", key=f"chk_{col_badge}"):
+                                nouvelles_validations.append(col_badge)
+
+                if nouvelles_validations:
+                    if st.button("💾 Enregistrer et envoyer les badges", type="primary"):
+                        # Si l'élève est totalement nouveau, on lui crée une ligne de profil
+                        if df.empty or nom_eleve not in df["Nom_Prenom"].values:
+                            new_row = {"Nom_Prenom": nom_eleve, "Classe": "", "Code_UAA": "Profil", "Description_UAA": "Création profil pour badges", "Date_Epreuve": pd.to_datetime(datetime.today()), "Resultat": "", "Statut": "Actif"}
+                            for b in BADGES_UAA1.keys(): new_row[b] = ""
+                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+                        # Mettre à jour "Acquis" pour toutes les lignes existantes de cet élève
+                        for b in nouvelles_validations:
+                            df.loc[df["Nom_Prenom"] == nom_eleve, b] = "Acquis"
+                            send_badge_email(nom_eleve, BADGES_UAA1[b]['nom'], BADGES_UAA1[b]['url'])
+
+                        save_data(df)
+                        st.success("✅ Badges enregistrés et emails envoyés ! 🎉")
+                        time.sleep(2)
+                        st.rerun()
+
+            elif type_saisie == "🎓 Résultat d'une épreuve (UAA)":
+                c1, c2 = st.columns(2)
+                classe = c1.selectbox("Année", list(PROGRAMME.keys()))
+                codes_uaa = list(PROGRAMME[classe].keys())
+                code_choisi = c2.selectbox("UAA", codes_uaa)
+                desc = PROGRAMME[classe][code_choisi]
+                st.info(f"**Compétence visée :** {desc}")
+
+                deja_reussi = False
+                date_reussite_str = ""
+                
+                if mode_eleve == "Existant" and not df.empty:
+                    mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite", na=False))
+                    df_deja = df[mask]
+                    if not df_deja.empty:
+                        deja_reussi = True
+                        try:
+                            date_reussite_str = pd.to_datetime(df_deja.iloc[0]["Date_Epreuve"]).strftime('%d/%m/%Y')
+                        except:
+                            date_reussite_str = str(df_deja.iloc[0]["Date_Epreuve"])[:10]
+
+                if deja_reussi:
+                    st.error(f"🔒 Action bloquée : **{nom_eleve}** a déjà validé l'**{code_choisi}** le {date_reussite_str}. Nouvel encodage impossible.")
+                else:
+                    c3, c4 = st.columns(2)
+                    date_ep = c3.date_input("Date de l'épreuve", datetime.today())
+                    res = c4.radio("Résultat obtenu", ["Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
+
+                    if st.button("💾 Sauvegarder le résultat", type="primary"):
+                        if not date_ep:
+                            st.error("❌ Oups ! Veuillez définir une date valide.")
+                        else:
+                            # --- VÉRIFICATION DES PRÉREQUIS POUR L'UAA 1 ---
+                            if code_choisi == "UAA 1" and "Réussite" in res:
+                                status_uaa1 = [False] * 5
+                                if not df.empty and nom_eleve in df["Nom_Prenom"].values:
+                                    status_uaa1 = [df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any() for b in BADGES_UAA1.keys()]
+                                
+                                if not all(status_uaa1):
+                                    st.error("❌ Action bloquée : Impossible de valider la réussite de l'UAA 1. L'élève doit d'abord valider les 5 badges prérequis (SI1 à SI5).")
+                                    st.stop()
+                                else:
+                                    # Envoi du badge global de l'UAA 1
+                                    send_badge_email(nom_eleve, "UAA 1", LIEN_UAA1)
+
+                            date_to_save = pd.to_datetime(date_ep)
+                            new_row = {
+                                "Nom_Prenom": nom_eleve, 
+                                "Classe": classe, 
+                                "Code_UAA": code_choisi, 
+                                "Description_UAA": desc, 
+                                "Date_Epreuve": date_to_save, 
+                                "Resultat": res,
+                                "Statut": "Actif"
+                            }
+                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                            
+                            # On répercute les badges existants sur cette nouvelle ligne pour que le GSheet reste propre
+                            for b in BADGES_UAA1.keys():
+                                if not df.empty and nom_eleve in df["Nom_Prenom"].values:
+                                    if df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any():
+                                        df.loc[df.index[-1], b] = "Acquis"
+
+                            save_data(df)
+                            
+                            st.toast('✅ Encodage enregistré avec succès !')
+                            
+                            reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
+                            if reussites_eleve["Code_UAA"].nunique() >= 6:
+                                st.balloons()
+                                st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
+                                time.sleep(3)
+                            else:
+                                st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
+                            time.sleep(1)
+                            st.rerun()
 
     elif page_actuelle == "📊 Dashboard":
         st.subheader("📊 Tableau de Bord & Données")
@@ -428,6 +509,9 @@ else:
         else:
             col_f1, col_f2 = st.columns(2)
             classes_uniques = df_actifs["Classe"].unique().tolist()
+            # On retire les classes vides (créées potentiellement pour les profils badges nus)
+            classes_uniques = [c for c in classes_uniques if str(c).strip() != ""] 
+            
             filtre_classe = col_f1.multiselect("Filtrer par Classe", classes_uniques, default=classes_uniques, key="dash_f_classe")
             filtre_eleve = col_f2.multiselect("Filtrer par Élève", existing_students, default=[], key="dash_f_eleve")
 
@@ -435,9 +519,12 @@ else:
             if filtre_eleve:
                 df_filtered = df_filtered[df_filtered["Nom_Prenom"].isin(filtre_eleve)]
 
-            nb_eleves = df_filtered["Nom_Prenom"].nunique()
-            total_eval = len(df_filtered)
-            reussites = len(df_filtered[df_filtered["Resultat"].str.contains("Réussite")])
+            # Pour les métriques, on exclut les lignes "Profil" (celles juste pour les badges)
+            df_eval = df_filtered[~df_filtered["Code_UAA"].str.contains("Profil", na=False)]
+
+            nb_eleves = df_eval["Nom_Prenom"].nunique()
+            total_eval = len(df_eval)
+            reussites = len(df_eval[df_eval["Resultat"].str.contains("Réussite")])
             taux_reussite = round((reussites / total_eval * 100) if total_eval > 0 else 0, 1)
 
             kpi1, kpi2, kpi3 = st.columns(3)
@@ -451,21 +538,23 @@ else:
             
             with c_chart1:
                 st.markdown("**Répartition des Résultats**")
-                df_filtered["Resultat_Court"] = df_filtered["Resultat"].apply(lambda x: "Acquis" if "Réussite" in str(x) else "Non Acquis")
-                repartition = df_filtered["Resultat_Court"].value_counts().reset_index()
-                repartition.columns = ["Statut", "Nombre"]
-                fig_pie = px.pie(repartition, values="Nombre", names="Statut", color="Statut", 
-                                color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"},
-                                hole=0.4)
-                st.plotly_chart(fig_pie, use_container_width=True, key="pie_chart_dash")
+                if not df_eval.empty:
+                    df_eval["Resultat_Court"] = df_eval["Resultat"].apply(lambda x: "Acquis" if "Réussite" in str(x) else "Non Acquis")
+                    repartition = df_eval["Resultat_Court"].value_counts().reset_index()
+                    repartition.columns = ["Statut", "Nombre"]
+                    fig_pie = px.pie(repartition, values="Nombre", names="Statut", color="Statut", 
+                                    color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"},
+                                    hole=0.4)
+                    st.plotly_chart(fig_pie, use_container_width=True, key="pie_chart_dash")
 
             with c_chart2:
                 st.markdown("**Évaluations par Classe**")
-                eval_par_classe = df_filtered.groupby(["Classe", "Resultat_Court"]).size().reset_index(name="Nombre")
-                fig_bar = px.bar(eval_par_classe, x="Classe", y="Nombre", color="Resultat_Court",
-                                barmode="group",
-                                color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"})
-                st.plotly_chart(fig_bar, use_container_width=True, key="bar_chart_dash")
+                if not df_eval.empty:
+                    eval_par_classe = df_eval.groupby(["Classe", "Resultat_Court"]).size().reset_index(name="Nombre")
+                    fig_bar = px.bar(eval_par_classe, x="Classe", y="Nombre", color="Resultat_Court",
+                                    barmode="group",
+                                    color_discrete_map={"Acquis":"#28a745", "Non Acquis":"#dc3545"})
+                    st.plotly_chart(fig_bar, use_container_width=True, key="bar_chart_dash")
 
             st.markdown("**Détail des données (filtré)**")
             df_display = df_filtered[["Nom_Prenom", "Classe", "Code_UAA", "Date_Epreuve", "Resultat"]].sort_values(by="Date_Epreuve", ascending=False)
@@ -479,7 +568,8 @@ else:
         
         if eleve_pdf:
             email_auto = normalize_email_text(eleve_pdf) + DOMAIN_ECOLE
-            df_historique = df[df["Nom_Prenom"] == eleve_pdf].copy()
+            # On ignore les lignes de "profil" pour les pdf
+            df_historique = df[(df["Nom_Prenom"] == eleve_pdf) & (~df["Code_UAA"].str.contains("Profil", na=False))].copy()
             df_final = get_latest_results(df_historique)
             
             pdf_bytes = generate_pdf(eleve_pdf, df_final)
@@ -511,7 +601,9 @@ else:
 
         st.divider()
         st.subheader("2. Rapport Global")
-        pdf_global_bytes = generate_global_pdf(df)
+        # On exclut les lignes de Profil de la génération PDF Globale
+        df_pdf_global = df[~df["Code_UAA"].str.contains("Profil", na=False)]
+        pdf_global_bytes = generate_global_pdf(df_pdf_global)
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
         
         if st.button("👥 Pré-remplir l'équipe pédagogique"):

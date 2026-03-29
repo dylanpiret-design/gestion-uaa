@@ -340,7 +340,6 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
-# --- LA FONCTION MISE À JOUR EST ICI ---
 def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
     destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
     sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge}"
@@ -378,7 +377,6 @@ def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
     """
     
     send_email_wrapper([destinataire], sujet, corps_html, mime_type='html')
-# ---------------------------------------
 
 # --- UI PRINCIPALE ---
 
@@ -501,74 +499,81 @@ else:
                 desc = PROGRAMME[classe][code_choisi]
                 st.info(f"**Compétence visée :** {desc}")
 
-                deja_reussi = False
-                date_reussite_str = ""
-                
-                if mode_eleve == "Existant" and not df.empty:
-                    mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite", na=False))
-                    df_deja = df[mask]
-                    if not df_deja.empty:
-                        deja_reussi = True
-                        try:
-                            date_reussite_str = pd.to_datetime(df_deja.iloc[0]["Date_Epreuve"]).strftime('%d/%m/%Y')
-                        except:
-                            date_reussite_str = str(df_deja.iloc[0]["Date_Epreuve"])[:10]
+                # --- VÉRIFICATION DES PRÉREQUIS (BADGES) AVANT ENCODAGE ---
+                badges_manquants = False
+                if code_choisi == "UAA 1": # À adapter si d'autres UAA ont des badges dans le futur
+                    if mode_eleve == "Existant" and not df.empty and nom_eleve in df["Nom_Prenom"].values:
+                        # On vérifie si l'élève a "Acquis" pour tous les badges de l'UAA 1
+                        status_uaa1 = [df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any() for b in BADGES_UAA1.keys()]
+                        if not all(status_uaa1):
+                            badges_manquants = True
+                    else:
+                        # S'il est nouveau ou n'a aucune ligne, il n'a d'office pas les badges
+                        badges_manquants = True
 
-                if deja_reussi:
-                    st.error(f"🔒 Action bloquée : **{nom_eleve}** a déjà validé l'**{code_choisi}** le {date_reussite_str}. Nouvel encodage impossible.")
+                if badges_manquants:
+                    st.error(f"🔒 Action bloquée : Impossible d'encoder un résultat pour l'{code_choisi}. L'élève **{nom_eleve}** doit d'abord valider tous les badges prérequis de cette UAA.")
                 else:
-                    c3, c4 = st.columns(2)
-                    date_ep = c3.date_input("Date de l'épreuve", datetime.today())
-                    res = c4.radio("Résultat obtenu", ["Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
+                    # Si les badges sont OK (ou s'il n'y a pas de badges requis pour cette UAA), on continue
+                    deja_reussi = False
+                    date_reussite_str = ""
+                    
+                    if mode_eleve == "Existant" and not df.empty:
+                        mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite", na=False))
+                        df_deja = df[mask]
+                        if not df_deja.empty:
+                            deja_reussi = True
+                            try:
+                                date_reussite_str = pd.to_datetime(df_deja.iloc[0]["Date_Epreuve"]).strftime('%d/%m/%Y')
+                            except:
+                                date_reussite_str = str(df_deja.iloc[0]["Date_Epreuve"])[:10]
 
-                    if st.button("💾 Sauvegarder le résultat", type="primary"):
-                        if not date_ep:
-                            st.error("❌ Oups ! Veuillez définir une date valide.")
-                        else:
-                            # --- VÉRIFICATION DES PRÉREQUIS POUR L'UAA 1 ---
-                            if code_choisi == "UAA 1" and "Réussite" in res:
-                                status_uaa1 = [False] * 5
-                                if not df.empty and nom_eleve in df["Nom_Prenom"].values:
-                                    status_uaa1 = [df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any() for b in BADGES_UAA1.keys()]
-                                
-                                if not all(status_uaa1):
-                                    st.error("❌ Action bloquée : Impossible de valider la réussite de l'UAA 1. L'élève doit d'abord valider les 5 badges prérequis (SI1 à SI5).")
-                                    st.stop()
-                                else:
-                                    # Envoi du badge global de l'UAA 1 avec son image
+                    if deja_reussi:
+                        st.error(f"🔒 Action bloquée : **{nom_eleve}** a déjà validé l'**{code_choisi}** le {date_reussite_str}. Nouvel encodage impossible.")
+                    else:
+                        c3, c4 = st.columns(2)
+                        date_ep = c3.date_input("Date de l'épreuve", datetime.today())
+                        res = c4.radio("Résultat obtenu", ["Réussite (Acquis)", "Echec (Non Acquis)"], horizontal=True)
+
+                        if st.button("💾 Sauvegarder le résultat", type="primary"):
+                            if not date_ep:
+                                st.error("❌ Oups ! Veuillez définir une date valide.")
+                            else:
+                                # Envoi automatique du badge global UAA si c'est une réussite (exemple pour l'UAA 1)
+                                if code_choisi == "UAA 1" and "Réussite" in res:
                                     send_badge_email(nom_eleve, "UAA 1", LIEN_UAA1, IMG_UAA1)
 
-                            date_to_save = pd.to_datetime(date_ep)
-                            new_row = {
-                                "Nom_Prenom": nom_eleve, 
-                                "Classe": classe, 
-                                "Code_UAA": code_choisi, 
-                                "Description_UAA": desc, 
-                                "Date_Epreuve": date_to_save, 
-                                "Resultat": res,
-                                "Statut": "Actif"
-                            }
-                            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                            
-                            # On répercute les badges existants sur cette nouvelle ligne pour que le GSheet reste propre
-                            for b in BADGES_UAA1.keys():
-                                if not df.empty and nom_eleve in df["Nom_Prenom"].values:
-                                    if df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any():
-                                        df.loc[df.index[-1], b] = "Acquis"
+                                date_to_save = pd.to_datetime(date_ep)
+                                new_row = {
+                                    "Nom_Prenom": nom_eleve, 
+                                    "Classe": classe, 
+                                    "Code_UAA": code_choisi, 
+                                    "Description_UAA": desc, 
+                                    "Date_Epreuve": date_to_save, 
+                                    "Resultat": res,
+                                    "Statut": "Actif"
+                                }
+                                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                                
+                                # On répercute les badges existants sur cette nouvelle ligne pour que le GSheet reste propre
+                                for b in BADGES_UAA1.keys():
+                                    if not df.empty and nom_eleve in df["Nom_Prenom"].values:
+                                        if df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any():
+                                            df.loc[df.index[-1], b] = "Acquis"
 
-                            save_data(df)
-                            
-                            st.toast('✅ Encodage enregistré avec succès !')
-                            
-                            reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
-                            if reussites_eleve["Code_UAA"].nunique() >= 6:
-                                st.balloons()
-                                st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
-                                time.sleep(3)
-                            else:
-                                st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
-                            time.sleep(1)
-                            st.rerun()
+                                save_data(df)
+                                
+                                st.toast('✅ Encodage enregistré avec succès !')
+                                
+                                reussites_eleve = df[(df["Nom_Prenom"] == nom_eleve) & (df["Resultat"].astype(str).str.contains("Réussite"))]
+                                if reussites_eleve["Code_UAA"].nunique() >= 6:
+                                    st.balloons()
+                                    st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
+                                    time.sleep(3)
+                                else:
+                                    st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
+                                time.sleep(1)
+                                st.rerun()
 
     elif page_actuelle == "📊 Dashboard":
         st.subheader("📊 Tableau de Bord & Données")

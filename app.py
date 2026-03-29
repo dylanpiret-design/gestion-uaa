@@ -66,7 +66,7 @@ BADGES_UAA1 = {
         "img": GITHUB_BASE_URL + "logo_UAA1_SI5.png"
     }
 }
-LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=h5vr9v"
+LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=hopgck"
 IMG_UAA1 = GITHUB_BASE_URL + "logo_UAA1.png"
 
 # --- FONCTIONS UTILITAIRES ---

@@ -17,6 +17,13 @@ NOM_OPTION = "Electricien(ne) de maintenance industrielle"
 DOMAIN_ECOLE = "@cnddinant.be"
 LOGO_PATH = "logo.png"
 
+# 👇 À MODIFIER : Indique ton compte et ton repo GitHub ici 👇
+GITHUB_COMPTE = "VOTRE_COMPTE" 
+GITHUB_REPO = "VOTRE_REPO"
+# -----------------------------------------------------------
+
+GITHUB_BASE_URL = f"https://raw.githubusercontent.com/{GITHUB_COMPTE}/{GITHUB_REPO}/main/"
+
 # Programme
 PROGRAMME = {
     "4TQEMI": {
@@ -35,13 +42,14 @@ PROGRAMME = {
 
 # --- BADGES UAA1 ---
 BADGES_UAA1 = {
-    "UAA1_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", "nom": "UAA1 - SI1"},
-    "UAA1_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", "nom": "UAA1 - SI2"},
-    "UAA1_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8nvn99", "nom": "UAA1 - SI3"},
-    "UAA1_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=4kx8cy", "nom": "UAA1 - SI4"},
-    "UAA1_SI5": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=mzphq6", "nom": "UAA1 - SI5"}
+    "UAA1_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA1_SI1.png"},
+    "UAA1_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA1_SI2.png"},
+    "UAA1_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8nvn99", "nom": "SI3 : Remplacement d'un composant électrique + règles de sécurité / ergonomiques / environnementales", "img": GITHUB_BASE_URL + "logo_UAA1_SI3.png"},
+    "UAA1_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=4kx8cy", "nom": "SI4 : Remise en service et réglage", "img": GITHUB_BASE_URL + "logo_UAA1_SI4.png"},
+    "UAA1_SI5": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=mzphq6", "nom": "SI5 : Clôture de l'intervention", "img": GITHUB_BASE_URL + "logo_UAA1_SI5.png"}
 }
 LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=h5vr9v"
+IMG_UAA1 = GITHUB_BASE_URL + "logo_UAA1.png"
 
 # --- FONCTIONS UTILITAIRES ---
 
@@ -286,7 +294,7 @@ def generate_global_pdf(df):
     return pdf.output(dest='S').encode('latin-1')
 
 # --- MAIL ---
-def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_name=None):
+def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_name=None, mime_type='plain'):
     try:
         email_exp = st.secrets["email"]["EMAIL_EXPEDITEUR"]
         mdp_exp = st.secrets["email"]["MOT_DE_PASSE_EMAIL"]
@@ -295,7 +303,7 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         msg['From'] = email_exp
         msg['To'] = ", ".join(destinataires_list) 
         msg['Subject'] = sujet
-        msg.attach(MIMEText(corps, 'plain', 'utf-8'))
+        msg.attach(MIMEText(corps, mime_type, 'utf-8'))
 
         if pdf_bytes and pdf_name:
             part = MIMEBase('application', 'octet-stream')
@@ -314,11 +322,49 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
-def send_badge_email(nom_eleve, nom_badge, url_badge):
+def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
     destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
-    sujet = f"🏆 Nouveau badge obtenu : {nom_badge}"
-    corps = f"Bonjour {nom_eleve},\n\nFélicitations ! Tu as validé la compétence : {nom_badge}.\n\nTu peux dès à présent réclamer ton badge officiel dans ton Open Badge Passport en cliquant sur le lien suivant :\n{url_badge}\n\nContinue sur cette belle lancée !\n\nL'équipe pédagogique."
-    send_email_wrapper([destinataire], sujet, corps)
+    sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge}"
+    
+    corps_html = f"""
+    <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+      <h2 style="color: #2c3e50;">Félicitations {nom_eleve} !</h2>
+      <p>Suite à ton évaluation, tu as brillamment obtenu le badge numérique :</p>
+      
+      <div style="text-align: center; margin: 20px 0;">
+          <img src="{img_badge}" alt="{nom_badge}" style="max-width: 150px; border-radius: 10px;">
+          <p style="font-size: 16px; font-weight: bold; color: #2980b9;">{nom_badge}</p>
+      </div>
+      
+      <p>Ce badge numérique certifie tes compétences. Tu peux l'ajouter à ton CV, ton profil LinkedIn, ou le stocker dans ton portefeuille de badges numériques, comme <strong>Open Badge Passport</strong>.</p>
+      
+      <hr style="border: 1px solid #eee; margin: 20px 0;">
+      
+      <h3 style="color: #2c3e50;">Comment récupérer ton badge et le sauvegarder ?</h3>
+      
+      <p><strong>Étape 1 : Accepte ton badge sur Badgecraft</strong></p>
+      <ol>
+        <li>Clique sur le lien suivant pour réclamer ton badge : <br>
+            <a href="{url_badge}" style="display: inline-block; margin-top: 10px; margin-bottom: 10px; padding: 10px 15px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px;">Réclamer mon badge</a>
+        </li>
+        <li>Connecte-toi ou crée un compte gratuit sur Badgecraft pour valider la réception.</li>
+      </ol>
+
+      <p><strong>Étape 2 : Transfère-le vers Open Badge Passport (Recommandé)</strong></p>
+      <p><em>Attention : Ne copie pas le lien de réclamation ci-dessus directement dans Open Badge Passport, cela générera une erreur. Suis plutôt ces instructions :</em></p>
+      <ol>
+        <li>Depuis ton compte Badgecraft, va sur la page de ton nouveau badge.</li>
+        <li>Clique sur l'option pour <strong>Télécharger (Download)</strong> l'image du badge (fichier .png).</li>
+        <li>Connecte-toi à ton compte <a href="https://openbadgepassport.com/">Open Badge Passport</a>.</li>
+        <li>Va dans la section <strong>Badges</strong>, clique sur <strong>Importer un badge</strong>, et choisis l'image que tu viens de télécharger.</li>
+      </ol>
+      
+      <p>Continue sur cette belle lancée !</p>
+      <p><em>L'équipe pédagogique</em></p>
+    </div>
+    """
+    
+    send_email_wrapper([destinataire], sujet, corps_html, mime_type='html')
 
 # --- UI PRINCIPALE ---
 
@@ -400,6 +446,12 @@ else:
                 cols = st.columns(5)
                 for i, (col_badge, info) in enumerate(BADGES_UAA1.items()):
                     with cols[i]:
+                        # Affichage de la miniature de l'image Github
+                        try:
+                            st.image(info["img"], width=80)
+                        except:
+                            st.write("🖼️") # Fallback si l'image ne charge pas
+                            
                         if status[col_badge]:
                             st.success(f"✅ {info['nom']}")
                         else:
@@ -417,7 +469,8 @@ else:
                         # Mettre à jour "Acquis" pour toutes les lignes existantes de cet élève
                         for b in nouvelles_validations:
                             df.loc[df["Nom_Prenom"] == nom_eleve, b] = "Acquis"
-                            send_badge_email(nom_eleve, BADGES_UAA1[b]['nom'], BADGES_UAA1[b]['url'])
+                            # Envoi avec l'image
+                            send_badge_email(nom_eleve, BADGES_UAA1[b]['nom'], BADGES_UAA1[b]['url'], BADGES_UAA1[b]['img'])
 
                         save_data(df)
                         st.success("✅ Badges enregistrés et emails envoyés ! 🎉")
@@ -466,8 +519,8 @@ else:
                                     st.error("❌ Action bloquée : Impossible de valider la réussite de l'UAA 1. L'élève doit d'abord valider les 5 badges prérequis (SI1 à SI5).")
                                     st.stop()
                                 else:
-                                    # Envoi du badge global de l'UAA 1
-                                    send_badge_email(nom_eleve, "UAA 1", LIEN_UAA1)
+                                    # Envoi du badge global de l'UAA 1 avec son image
+                                    send_badge_email(nom_eleve, "UAA 1", LIEN_UAA1, IMG_UAA1)
 
                             date_to_save = pd.to_datetime(date_ep)
                             new_row = {

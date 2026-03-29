@@ -340,6 +340,7 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
+# --- LA FONCTION MISE À JOUR EST ICI ---
 def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
     destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
     sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge}"
@@ -354,28 +355,22 @@ def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
           <p style="font-size: 16px; font-weight: bold; color: #2980b9;">{nom_badge}</p>
       </div>
       
-      <p>Ce badge numérique certifie tes compétences. Tu peux l'ajouter à ton CV, ton profil LinkedIn, ou le stocker dans ton portefeuille de badges numériques, comme <strong>Open Badge Passport</strong>.</p>
+      <p>Ce badge numérique certifie tes compétences. Tu peux l'ajouter à ton CV ou le partager sur tes réseaux (comme LinkedIn).</p>
       
       <hr style="border: 1px solid #eee; margin: 20px 0;">
       
-      <h3 style="color: #2c3e50;">Comment récupérer ton badge et le sauvegarder ?</h3>
+      <h3 style="color: #2c3e50;">Comment récupérer et sauvegarder ton badge ?</h3>
       
-      <p><strong>Étape 1 : Accepte ton badge sur Badgecraft</strong></p>
+      <p>La procédure a été simplifiée, tout se passe au même endroit :</p>
       <ol>
-        <li>Clique sur le lien suivant pour réclamer ton badge : <br>
+        <li>Clique sur le bouton ci-dessous pour réclamer ton badge : <br>
             <a href="{url_badge}" style="display: inline-block; margin-top: 10px; margin-bottom: 10px; padding: 10px 15px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px;">Réclamer mon badge</a>
         </li>
-        <li>Connecte-toi ou crée un compte gratuit sur Badgecraft pour valider la réception.</li>
+        <li>Connecte-toi (ou crée un compte gratuit en 1 minute) sur la plateforme <strong>Badgecraft</strong> en utilisant ton adresse e-mail.</li>
+        <li>Accepte ton badge !</li>
       </ol>
 
-      <p><strong>Étape 2 : Transfère-le vers Open Badge Passport (Recommandé)</strong></p>
-      <p><em>Attention : Ne copie pas le lien de réclamation ci-dessus directement dans Open Badge Passport, cela générera une erreur. Suis plutôt ces instructions :</em></p>
-      <ol>
-        <li>Depuis ton compte Badgecraft, va sur la page de ton nouveau badge.</li>
-        <li>Clique sur l'option pour <strong>Télécharger (Download)</strong> l'image du badge (fichier .png).</li>
-        <li>Connecte-toi à ton compte <a href="https://openbadgepassport.com/">Open Badge Passport</a>.</li>
-        <li>Va dans la section <strong>Badges</strong>, clique sur <strong>Importer un badge</strong>, et choisis l'image que tu viens de télécharger.</li>
-      </ol>
+      <p>Et c'est tout ! Ton badge est maintenant stocké de manière sécurisée dans ton "Portefeuille" sur Badgecraft. Tu pourras y retourner à tout moment pour le consulter.</p>
       
       <p>Continue sur cette belle lancée !</p>
       <p><em>L'équipe pédagogique</em></p>
@@ -383,6 +378,7 @@ def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge):
     """
     
     send_email_wrapper([destinataire], sujet, corps_html, mime_type='html')
+# ---------------------------------------
 
 # --- UI PRINCIPALE ---
 
@@ -678,57 +674,3 @@ else:
         df_pdf_global = df[~df["Code_UAA"].str.contains("Profil", na=False)]
         pdf_global_bytes = generate_global_pdf(df_pdf_global)
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
-        
-        if st.button("👥 Pré-remplir l'équipe pédagogique"):
-            st.session_state["email_rapport_p3"] = "leslie.hubot@cnddinant.be,fabian.polet@cnddinant.be,francois.leclercq@cnddinant.be,dylan.piret@cnddinant.be"
-        
-        email_rapport = st.text_input("Email(s) prof/direction", key="email_rapport_p3")
-        if st.button("Envoyer Rapport", key="btn_send_global"):
-            destinataires_globaux = [e.strip() for e in email_rapport.replace(';', ',').split(',') if e.strip()]
-            if not destinataires_globaux:
-                st.error("❌ Indiquez une adresse.")
-            else:
-                sujet = f"Rapport Global UAA - {datetime.now().strftime('%d/%m/%Y')}"
-                corps = "Bonjour, veuillez trouver le rapport ci-joint."
-                if send_email_wrapper(destinataires_globaux, sujet, corps, pdf_global_bytes, "Rapport_Global.pdf"):
-                    st.success("✅ Rapport envoyé !")
-
-    elif page_actuelle == "⚙️ Admin":
-        st.subheader("⚙️ Administration")
-        action = st.radio("Action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"])
-        
-        if action == "Renommer un élève":
-            if existing_students:
-                old_name = st.selectbox("Élève à renommer", existing_students)
-                new_name = st.text_input("Nouveau nom")
-                if st.button("Valider"):
-                    df.loc[df["Nom_Prenom"] == old_name, "Nom_Prenom"] = new_name.strip()
-                    save_data(df)
-                    st.success("Fait !")
-                    st.rerun()
-
-        elif action == "Archiver":
-            if existing_students:
-                eleve_to_arch = st.selectbox("Élève", existing_students)
-                if st.button(f"Archiver"):
-                    df.loc[df["Nom_Prenom"] == eleve_to_arch, "Statut"] = "Archivé"
-                    save_data(df)
-                    st.rerun()
-
-        elif action == "Restaurer":
-            df_archives = df[df["Statut"] == "Archivé"]
-            eleves_arch = df_archives["Nom_Prenom"].unique().tolist()
-            if eleves_arch:
-                e = st.selectbox("Restaurer qui ?", eleves_arch)
-                if st.button("Restaurer"):
-                    df.loc[df["Nom_Prenom"] == e, "Statut"] = "Actif"
-                    save_data(df)
-                    st.rerun()
-
-        elif action == "Supprimer Ligne":
-            st.dataframe(df)
-            idx = st.number_input("Index de la ligne", min_value=0, max_value=max(0, len(df)-1), step=1)
-            if st.button("Supprimer définitivement"):
-                df = df.drop(index=idx).reset_index(drop=True)
-                save_data(df)
-                st.rerun()

@@ -17,8 +17,8 @@ NOM_OPTION = "Electricien(ne) de maintenance industrielle"
 DOMAIN_ECOLE = "@cnddinant.be"
 LOGO_PATH = "logo.png"
 
-# MODIFICATION 1 : Liste des professeurs pour l'envoi global
-MAILS_PROFS = "fabian.polet@cnddinant.be, leslie.hubot@cnddinant.be, francois.leclercq@cnddinant.be, dylan.piret@cnddinant.be"
+# NOUVEAU : Liste des professeurs pour le pré-encodage
+MAILS_PROFS_DEFAUT = "fabian.polet@cnddinant.be, leslie.hubot@cnddinant.be, francois.leclercq@cnddinant.be, dylan.piret@cnddinant.be"
 
 # Configuration GitHub automatique pour les images des badges
 GITHUB_COMPTE = "dylanpiret-design" 
@@ -67,7 +67,6 @@ IMG_UAA2 = GITHUB_BASE_URL + "logo_UAA2.png"
 BADGES_UAA3 = {
     "UAA3_SI1": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=f8skij&qr=1", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA3_SI1.png"},
     "UAA3_SI2": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=6b4kby&qr=1", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA3_SI2.png"},
-    # MODIFICATION 2 : Correction explicite du nom pneumatique
     "UAA3_SI3": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=yy2ipg&qr=1", "nom": "SI3 : Remplacement d'un composant pneumatique", "img": GITHUB_BASE_URL + "logo_UAA3_SI3.png"},
     "UAA3_SI4": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=zkwg6f&qr=1", "nom": "SI4 : Remise en service et réglage", "img": GITHUB_BASE_URL + "logo_UAA3_SI4.png"},
     "UAA3_SI5": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=soryyk&qr=1", "nom": "SI5 : Clôture de l'intervention", "img": GITHUB_BASE_URL + "logo_UAA3_SI5.png"}
@@ -267,9 +266,10 @@ def generate_global_pdf(df):
     pdf.ln(10)
 
     df_actifs = df[df["Statut"] != "Archivé"]
-    # MODIFICATION 3 : Tri alphabétique robuste
+    # SECURITE POUR LE TRI: On s'assure que ce sont des textes propres, sans cases vides
     eleves_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist()
-    eleves = sorted([str(e) for e in eleves_bruts if str(e).strip() != "" and str(e).lower() != "nan"])
+    eleves = [str(e) for e in eleves_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
+    eleves.sort()
 
     for eleve in eleves:
         if pdf.get_y() > 220:
@@ -363,16 +363,15 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
-# MODIFICATION 4 : Email plus clair avec mention de l'UAA
 def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, nom_uaa, est_uaa_finale=False):
     destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
     
     if est_uaa_finale:
         sujet = f"🏆 FÉLICITATIONS ! Tu as validé l'intégralité de l'{nom_uaa}"
         label_entete = f"L'intégralité de l'<strong>{nom_uaa}</strong> est validée !"
-        texte_intro = f"C'est une étape majeure ! Tu as réussi l'épreuve de validation finale de l'**{nom_uaa}** :"
+        texte_intro = "C'est une étape majeure ! Tu as réussi l'épreuve de validation finale :"
     else:
-        sujet = f"🏆 Badge obtenu : {nom_badge} ({nom_uaa})"
+        sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge} pour l'{nom_uaa}"
         label_entete = f"Félicitations {nom_eleve} !"
         texte_intro = f"Suite à ton évaluation, tu as brillamment obtenu une sous-compétence de l'**{nom_uaa}**. Voici ton badge numérique :"
 
@@ -386,16 +385,24 @@ def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, nom_uaa, est_ua
           <p style="font-size: 16px; font-weight: bold; color: #2980b9;">{nom_badge}</p>
       </div>
       
-      <p>Ce badge numérique certifie tes compétences. Tu peux l'ajouter à ton CV ou le partager sur tes réseaux.</p>
+      <p>Ce badge numérique certifie tes compétences. Tu peux l'ajouter à ton CV ou le partager sur tes réseaux (comme LinkedIn).</p>
       
       <hr style="border: 1px solid #eee; margin: 20px 0;">
       
-      <h3 style="color: #2c3e50;">Comment récupérer ton badge ?</h3>
+      <h3 style="color: #2c3e50;">Comment récupérer et sauvegarder ton badge ?</h3>
       
-      <p>1. Clique sur le bouton ci-dessous :<br>
-      <a href="{url_badge}" style="display: inline-block; margin: 10px 0; padding: 10px 15px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px;">Réclamer mon badge</a></p>
-      <p>2. Connecte-toi à Badgecraft et accepte ton badge.</p>
+      <p>La procédure est la même que pour tes badges précédents :</p>
+      <ol>
+        <li>Clique sur le bouton ci-dessous pour réclamer ton badge : <br>
+            <a href="{url_badge}" style="display: inline-block; margin-top: 10px; margin-bottom: 10px; padding: 10px 15px; background-color: #27ae60; color: white; text-decoration: none; border-radius: 5px;">Réclamer mon badge</a>
+        </li>
+        <li>Connecte-toi à ton compte <strong>Badgecraft</strong>.</li>
+        <li>Accepte ton badge !</li>
+      </ol>
+
+      <p>Et c'est tout ! Ton badge est maintenant stocké de manière sécurisée dans ton "Portefeuille" sur Badgecraft.</p>
       
+      <p>Continue sur cette belle lancée !</p>
       <p><em>L'équipe pédagogique</em></p>
     </div>
     """
@@ -443,7 +450,8 @@ else:
     df_actifs = df[df["Statut"] != "Archivé"]
     # SECURITE POUR LE MENU DEROULANT: Nettoyer la liste des élèves pour éviter des erreurs
     existing_students_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist() if not df_actifs.empty else []
-    existing_students = sorted([str(e) for e in existing_students_bruts if str(e).strip() != "" and str(e).lower() != "nan"])
+    existing_students = [str(e) for e in existing_students_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
+    existing_students.sort()
 
     if page_actuelle == "📝 Encodage":
         st.subheader("📝 Nouvel encodage")
@@ -514,11 +522,12 @@ else:
 
                         for b in nouvelles_validations:
                             df.loc[df["Nom_Prenom"] == nom_eleve, b] = "Acquis"
+                            # Mise à jour: On précise nom_uaa=uaa_choisie dans le mail
                             send_badge_email(nom_eleve, badges_actifs[b]['nom'], badges_actifs[b]['url'], badges_actifs[b]['img'], nom_uaa=uaa_choisie)
 
                         save_data(df)
                         st.success("✅ Badges enregistrés et emails envoyés ! 🎉")
-                        time.sleep(1)
+                        time.sleep(2)
                         st.rerun()
 
             elif type_saisie == "🎓 Résultat d'une épreuve (UAA)":
@@ -579,6 +588,7 @@ else:
                                     else:
                                         lien_final, img_final = LIEN_UAA3, IMG_UAA3
                                         
+                                    # Mise à jour: On précise nom_uaa=uaa_choisie pour le badge final
                                     send_badge_email(nom_eleve, uaa_choisie, lien_final, img_final, nom_uaa=uaa_choisie, est_uaa_finale=True)
 
                                 date_to_save = pd.to_datetime(date_ep)
@@ -593,7 +603,6 @@ else:
                                 }
                                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                                 
-                                # Synchronisation des badges sur la nouvelle ligne pour l'historique PDF
                                 toutes_cles_badges = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys()) + list(BADGES_UAA3.keys())
                                 for b in toutes_cles_badges:
                                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
@@ -607,6 +616,7 @@ else:
                                 if reussites_eleve["Code_UAA"].nunique() >= 6:
                                     st.balloons()
                                     st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
+                                    time.sleep(3)
                                 else:
                                     st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
                                 time.sleep(1)
@@ -619,7 +629,8 @@ else:
             st.info("Aucune donnée enregistrée pour le moment.")
         else:
             col_f1, col_f2 = st.columns(2)
-            classes_uniques = sorted([c for c in df_actifs["Classe"].unique().tolist() if str(c).strip() != ""])
+            classes_uniques = df_actifs["Classe"].unique().tolist()
+            classes_uniques = [c for c in classes_uniques if str(c).strip() != ""] 
             
             filtre_classe = col_f1.multiselect("Filtrer par Classe", classes_uniques, default=classes_uniques, key="dash_f_classe")
             filtre_eleve = col_f2.multiselect("Filtrer par Élève", existing_students, default=[], key="dash_f_eleve")
@@ -712,16 +723,31 @@ else:
         pdf_global_bytes = generate_global_pdf(df_pdf_global)
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
 
-        # MODIFICATION 5 : Envoi global à l'équipe des 4 profs
+        # --- NOUVEAU : SYSTÈME DE PRÉ-ENCODAGE DES MAILS (BULLETINS) ---
         st.write("---")
-        st.write("**Envoi automatique à l'équipe pédagogique**")
-        if st.button("🚀 Envoyer le rapport global aux 4 professeurs"):
-            liste_profs = [m.strip() for m in MAILS_PROFS.split(",")]
-            sujet_prof = f"Rapport Global UAA - {NOM_OPTION}"
-            corps_prof = f"Bonjour,\n\nVeuillez trouver en pièce jointe la situation à jour des UAA pour l'option {NOM_OPTION}.\n\nCe message est généré automatiquement par l'application de gestion."
-            
-            if send_email_wrapper(liste_profs, sujet_prof, corps_prof, pdf_global_bytes, "Rapport_Global_EMI.pdf"):
-                st.success(f"✅ Rapport envoyé avec succès aux 4 destinataires : {MAILS_PROFS}")
+        st.write("**📧 Envoi groupé (Équipe pédagogique)**")
+        
+        if "mails_preencodes" not in st.session_state:
+            st.session_state.mails_preencodes = ""
+
+        if st.button("📋 Pré-remplir avec les adresses des 4 professeurs"):
+            st.session_state.mails_preencodes = MAILS_PROFS_DEFAUT
+
+        liste_mails_editables = st.text_area(
+            "Modifier ou compléter les adresses (séparées par une virgule) :",
+            value=st.session_state.mails_preencodes,
+            placeholder="prof1@ecole.be, prof2@ecole.be..."
+        )
+
+        if st.button("🚀 Confirmer l'envoi au groupe", type="primary"):
+            if not liste_mails_editables.strip():
+                st.error("❌ Veuillez saisir au moins une adresse email.")
+            else:
+                dest_list = [m.strip() for m in liste_mails_editables.replace(';', ',').split(',') if m.strip()]
+                sujet_p = f"Rapport Global UAA - {NOM_OPTION}"
+                corps_p = f"Bonjour,\n\nVeuillez trouver en pièce jointe la situation globale des UAA pour l'option {NOM_OPTION}."
+                if send_email_wrapper(dest_list, sujet_p, corps_p, pdf_global_bytes, "Rapport_Global_EMI.pdf"):
+                    st.success(f"✅ Rapport envoyé avec succès aux {len(dest_list)} adresses.")
 
     elif page_actuelle == "⚙️ Admin":
         st.subheader("⚙️ Administration & Base de Données")
@@ -755,7 +781,7 @@ else:
 
         elif action == "Restaurer":
             df_archives = df[df["Statut"] == "Archivé"]
-            eleves_arch = sorted(df_archives["Nom_Prenom"].unique().tolist())
+            eleves_arch = df_archives["Nom_Prenom"].unique().tolist()
             if eleves_arch:
                 e = st.selectbox("Restaurer qui ?", eleves_arch, key="restore_eleve_p4")
                 if st.button("Restaurer", key="btn_restore"):

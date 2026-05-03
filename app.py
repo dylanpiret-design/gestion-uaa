@@ -60,6 +60,17 @@ BADGES_UAA2 = {
 LIEN_UAA2 = "https://www.badgecraft.eu/auto/wallet/claim?code=cqs5p3&qr=1"
 IMG_UAA2 = GITHUB_BASE_URL + "logo_UAA2.png"
 
+# --- BADGES UAA3 ---
+BADGES_UAA3 = {
+    "UAA3_SI1": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=f8skij&qr=1", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA3_SI1.png"},
+    "UAA3_SI2": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=6b4kby&qr=1", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA3_SI2.png"},
+    "UAA3_SI3": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=yy2ipg&qr=1", "nom": "SI3 : Remplacement d'un composant électrique", "img": GITHUB_BASE_URL + "logo_UAA3_SI3.png"},
+    "UAA3_SI4": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=zkwg6f&qr=1", "nom": "SI4 : Remise en service et réglage", "img": GITHUB_BASE_URL + "logo_UAA3_SI4.png"},
+    "UAA3_SI5": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=soryyk&qr=1", "nom": "SI5 : Clôture de l'intervention", "img": GITHUB_BASE_URL + "logo_UAA3_SI5.png"}
+}
+LIEN_UAA3 = "https://www.badgecraft.eu/auto/wallet/claim?code=t25p9z&qr=1"
+IMG_UAA3 = GITHUB_BASE_URL + "logo_UAA3.png"
+
 # --- FONCTIONS UTILITAIRES ---
 def clean_text(text):
     return str(text).encode('latin-1', 'replace').decode('latin-1')
@@ -93,7 +104,8 @@ def load_data():
     colonnes_base = [
         "Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
         "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
-        "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"
+        "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5",
+        "UAA3_SI1", "UAA3_SI2", "UAA3_SI3", "UAA3_SI4", "UAA3_SI5"
     ]
     try:
         df = conn.read(worksheet="Data", ttl=0)
@@ -125,7 +137,8 @@ def save_data(df):
     colonnes_obligatoires = [
         "Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
         "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
-        "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"
+        "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5",
+        "UAA3_SI1", "UAA3_SI2", "UAA3_SI3", "UAA3_SI4", "UAA3_SI5"
     ]
     
     for col in colonnes_obligatoires:
@@ -450,8 +463,15 @@ else:
         if nom_eleve:
             st.divider()
             
-            uaa_choisie = st.selectbox("Sélectionner l'UAA concernée :", ["UAA 1", "UAA 2"])
-            badges_actifs = BADGES_UAA1 if uaa_choisie == "UAA 1" else BADGES_UAA2
+            # --- MENU AVEC UAA 1, 2 ET 3 ---
+            uaa_choisie = st.selectbox("Sélectionner l'UAA concernée :", ["UAA 1", "UAA 2", "UAA 3"])
+            
+            if uaa_choisie == "UAA 1":
+                badges_actifs = BADGES_UAA1
+            elif uaa_choisie == "UAA 2":
+                badges_actifs = BADGES_UAA2
+            else:
+                badges_actifs = BADGES_UAA3
             
             type_saisie = st.radio("Que souhaitez-vous faire ?", ["🥇 Validation de Badges (Prérequis SI)", "🎓 Résultat d'une épreuve (UAA)"], horizontal=True)
 
@@ -490,6 +510,7 @@ else:
                             new_row = {"Nom_Prenom": nom_eleve, "Classe": "", "Code_UAA": "Profil", "Description_UAA": "Création profil pour badges", "Date_Epreuve": pd.to_datetime(datetime.today()), "Resultat": "", "Statut": "Actif"}
                             for b in BADGES_UAA1.keys(): new_row[b] = ""
                             for b in BADGES_UAA2.keys(): new_row[b] = ""
+                            for b in BADGES_UAA3.keys(): new_row[b] = ""
                             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
                         for b in nouvelles_validations:
@@ -503,7 +524,15 @@ else:
 
             elif type_saisie == "🎓 Résultat d'une épreuve (UAA)":
                 c1, c2 = st.columns(2)
-                classe_associee = "4TQEMI" if uaa_choisie == "UAA 1" else "5TQEMI"
+                
+                # Affectation des classes selon le programme
+                if uaa_choisie == "UAA 1":
+                    classe_associee = "4TQEMI"
+                elif uaa_choisie in ["UAA 2", "UAA 3"]:
+                    classe_associee = "5TQEMI"
+                else:
+                    classe_associee = "6TQEMI"
+                    
                 st.write(f"**Année :** {classe_associee}")
                 desc = PROGRAMME[classe_associee][uaa_choisie]
                 st.info(f"**Compétence visée :** {desc}")
@@ -544,8 +573,13 @@ else:
                                 st.error("❌ Oups ! Veuillez définir une date valide.")
                             else:
                                 if "Réussite" in res:
-                                    lien_final = LIEN_UAA1 if uaa_choisie == "UAA 1" else LIEN_UAA2
-                                    img_final = IMG_UAA1 if uaa_choisie == "UAA 1" else IMG_UAA2
+                                    if uaa_choisie == "UAA 1":
+                                        lien_final, img_final = LIEN_UAA1, IMG_UAA1
+                                    elif uaa_choisie == "UAA 2":
+                                        lien_final, img_final = LIEN_UAA2, IMG_UAA2
+                                    else:
+                                        lien_final, img_final = LIEN_UAA3, IMG_UAA3
+                                        
                                     send_badge_email(nom_eleve, uaa_choisie, lien_final, img_final, est_uaa_finale=True)
 
                                 date_to_save = pd.to_datetime(date_ep)
@@ -560,7 +594,7 @@ else:
                                 }
                                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                                 
-                                toutes_cles_badges = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys())
+                                toutes_cles_badges = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys()) + list(BADGES_UAA3.keys())
                                 for b in toutes_cles_badges:
                                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
                                         if df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any():
@@ -735,7 +769,7 @@ else:
                 st.rerun()
 
         elif action == "⚠️ Réparer la base (Vider le cache)":
-            st.warning("Utilisez ce bouton uniquement si l'application plante lors de l'encodage de l'UAA 2.")
+            st.warning("Utilisez ce bouton uniquement si l'application plante lors de l'encodage.")
             if st.button("Forcer la réparation et vider le cache", type="primary", key="btn_repair_db"):
                 st.cache_data.clear()
                 df_repair = load_data()

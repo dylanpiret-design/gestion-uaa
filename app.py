@@ -66,7 +66,7 @@ BADGES_UAA1 = {
         "img": GITHUB_BASE_URL + "logo_UAA1_SI5.png"
     }
 }
-LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=hopgck"
+LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=h5vr9v"
 IMG_UAA1 = GITHUB_BASE_URL + "logo_UAA1.png"
 
 # --- BADGES UAA2 ---
@@ -132,36 +132,47 @@ def colorer_lignes(row):
 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
-    colonnes_base = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
-                     "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
-                     "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"]
+    colonnes_base = [
+        "Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
+        "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
+        "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"
+    ]
     try:
+        # ttl=0 empêche Streamlit de garder l'ancienne version en mémoire
         df = conn.read(worksheet="Data", ttl=0)
-        if df.empty:
+        if df is None or df.empty:
             return pd.DataFrame(columns=colonnes_base)
+        
+        # Supprime les éventuels espaces invisibles dans les noms de colonnes
+        df.columns = [str(c).strip() for c in df.columns]
+        
         df = df.dropna(how="all")
         df['Date_Epreuve'] = pd.to_datetime(df['Date_Epreuve'], errors='coerce')
+        
         if 'Statut' not in df.columns:
             df['Statut'] = 'Actif'
         else:
             df['Statut'] = df['Statut'].fillna('Actif')
             
-        # S'assurer que les nouvelles colonnes UAA2 existent
+        # S'assurer de manière agressive que TOUTES les colonnes existent
         for col in colonnes_base:
             if col not in df.columns:
                 df[col] = ""
                 
         return df
-    except Exception:
+    except Exception as e:
         return pd.DataFrame(columns=colonnes_base)
 
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
     df_to_save = df.copy()
-    colonnes_obligatoires = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
-                             "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
-                             "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"]
+    colonnes_obligatoires = [
+        "Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
+        "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
+        "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"
+    ]
     
+    # On revérifie avant de sauvegarder
     for col in colonnes_obligatoires:
         if col not in df_to_save.columns:
             df_to_save[col] = ""
@@ -172,7 +183,7 @@ def save_data(df):
     
     try:
         conn.update(worksheet="Data", data=df_to_save)
-        st.cache_data.clear()
+        st.cache_data.clear() # On vide le cache immédiatement après l'écriture
     except Exception as e:
         st.error(f"Erreur d'écriture Google Sheets : {e}")
         st.stop()
@@ -541,7 +552,6 @@ else:
 
             elif type_saisie == "🎓 Résultat d'une épreuve (UAA)":
                 c1, c2 = st.columns(2)
-                # Forcer la classe selon l'UAA
                 classe_associee = "4TQEMI" if uaa_choisie == "UAA 1" else "5TQEMI"
                 st.write(f"**Année :** {classe_associee}")
                 desc = PROGRAMME[classe_associee][uaa_choisie]
@@ -582,7 +592,6 @@ else:
                             if not date_ep:
                                 st.error("❌ Oups ! Veuillez définir une date valide.")
                             else:
-                                # --- ENVOI MAIL BADGE UAA FINAL SI RÉUSSITE ---
                                 if "Réussite" in res:
                                     lien_final = LIEN_UAA1 if uaa_choisie == "UAA 1" else LIEN_UAA2
                                     img_final = IMG_UAA1 if uaa_choisie == "UAA 1" else IMG_UAA2
@@ -600,7 +609,6 @@ else:
                                 }
                                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                                 
-                                # Recopier les badges acquis sur la nouvelle ligne pour l'historique
                                 toutes_cles_badges = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys())
                                 for b in toutes_cles_badges:
                                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
@@ -723,7 +731,7 @@ else:
 
     elif page_actuelle == "⚙️ Admin":
         st.subheader("⚙️ Administration & Base de Données")
-        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"], key="admin_action_radio")
+        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne", "⚠️ Réparer la base (Vider le cache)"], key="admin_action_radio")
         
         if action == "Renommer un élève":
             if existing_students:
@@ -773,4 +781,14 @@ else:
                 save_data(df)
                 st.success("Ligne supprimée !")
                 time.sleep(1)
+                st.rerun()
+
+        elif action == "⚠️ Réparer la base (Vider le cache)":
+            st.warning("Utilisez ce bouton uniquement si l'application plante lors de l'encodage de l'UAA 2.")
+            if st.button("Forcer la réparation et vider le cache", type="primary", key="btn_repair_db"):
+                st.cache_data.clear()
+                df_repair = load_data()
+                save_data(df_repair)
+                st.success("✅ Mémoire de l'application vidée. Tout devrait fonctionner à présent !")
+                time.sleep(2)
                 st.rerun()

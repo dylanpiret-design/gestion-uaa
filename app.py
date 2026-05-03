@@ -40,68 +40,27 @@ PROGRAMME = {
 
 # --- BADGES UAA1 ---
 BADGES_UAA1 = {
-    "UAA1_SI1": {
-        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", 
-        "nom": "SI1 : Préparation de l'intervention de maintenance", 
-        "img": GITHUB_BASE_URL + "logo_UAA1_SI1.png"
-    },
-    "UAA1_SI2": {
-        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", 
-        "nom": "SI2 : LMRA - Consignation - Déconsignation", 
-        "img": GITHUB_BASE_URL + "logo_UAA1_SI2.png"
-    },
-    "UAA1_SI3": {
-        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=8nvn99", 
-        "nom": "SI3 : Remplacement d'un composant électrique + règles de sécurité / ergonomiques / environnementales", 
-        "img": GITHUB_BASE_URL + "logo_UAA1_SI3.png"
-    },
-    "UAA1_SI4": {
-        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=4kx8cy", 
-        "nom": "SI4 : Remise en service et réglage", 
-        "img": GITHUB_BASE_URL + "logo_UAA1_SI4.png"
-    },
-    "UAA1_SI5": {
-        "url": "https://www.badgecraft.eu/fr/wallet/claim?code=mzphq6", 
-        "nom": "SI5 : Clôture de l'intervention", 
-        "img": GITHUB_BASE_URL + "logo_UAA1_SI5.png"
-    }
+    "UAA1_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA1_SI1.png"},
+    "UAA1_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA1_SI2.png"},
+    "UAA1_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8nvn99", "nom": "SI3 : Remplacement d'un composant électrique", "img": GITHUB_BASE_URL + "logo_UAA1_SI3.png"},
+    "UAA1_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=4kx8cy", "nom": "SI4 : Remise en service et réglage", "img": GITHUB_BASE_URL + "logo_UAA1_SI4.png"},
+    "UAA1_SI5": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=mzphq6", "nom": "SI5 : Clôture de l'intervention", "img": GITHUB_BASE_URL + "logo_UAA1_SI5.png"}
 }
 LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=h5vr9v"
 IMG_UAA1 = GITHUB_BASE_URL + "logo_UAA1.png"
 
 # --- BADGES UAA2 ---
 BADGES_UAA2 = {
-    "UAA2_SI1": {
-        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=gjt4f6&qr=1", 
-        "nom": "SI1 : Préparation de l'intervention de maintenance", 
-        "img": GITHUB_BASE_URL + "logo_UAA2_SI1.png"
-    },
-    "UAA2_SI2": {
-        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=6ubf77&qr=1", 
-        "nom": "SI2 : LMRA - Consignation - Déconsignation", 
-        "img": GITHUB_BASE_URL + "logo_UAA2_SI2.png"
-    },
-    "UAA2_SI3": {
-        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=hzvqdn&qr=1", 
-        "nom": "SI3 : Remplacement d'un composant électrique + règles de sécurité / ergonomiques / environnementales", 
-        "img": GITHUB_BASE_URL + "logo_UAA2_SI3.png"
-    },
-    "UAA2_SI4": {
-        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=ott9y2&qr=1", 
-        "nom": "SI4 : Remise en service et réglage", 
-        "img": GITHUB_BASE_URL + "logo_UAA2_SI4.png"
-    },
-    "UAA2_SI5": {
-        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=zts3i9&qr=1", 
-        "nom": "SI5 : Clôture de l'intervention", 
-        "img": GITHUB_BASE_URL + "logo_UAA2_SI5.png"
-    }
+    "UAA2_SI1": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=gjt4f6&qr=1", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA2_SI1.png"},
+    "UAA2_SI2": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=6ubf77&qr=1", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA2_SI2.png"},
+    "UAA2_SI3": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=hzvqdn&qr=1", "nom": "SI3 : Remplacement d'un composant électrique", "img": GITHUB_BASE_URL + "logo_UAA2_SI3.png"},
+    "UAA2_SI4": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=ott9y2&qr=1", "nom": "SI4 : Remise en service et réglage", "img": GITHUB_BASE_URL + "logo_UAA2_SI4.png"},
+    "UAA2_SI5": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=zts3i9&qr=1", "nom": "SI5 : Clôture de l'intervention", "img": GITHUB_BASE_URL + "logo_UAA2_SI5.png"}
 }
 LIEN_UAA2 = "https://www.badgecraft.eu/auto/wallet/claim?code=cqs5p3&qr=1"
 IMG_UAA2 = GITHUB_BASE_URL + "logo_UAA2.png"
 
 # --- FONCTIONS UTILITAIRES ---
-
 def clean_text(text):
     return str(text).encode('latin-1', 'replace').decode('latin-1')
 
@@ -129,7 +88,6 @@ def colorer_lignes(row):
     return [''] * len(row)
 
 # --- GESTION DES DONNÉES GOOGLE SHEETS ---
-
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
     colonnes_base = [
@@ -138,27 +96,25 @@ def load_data():
         "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"
     ]
     try:
-        # ttl=0 empêche Streamlit de garder l'ancienne version en mémoire
         df = conn.read(worksheet="Data", ttl=0)
         if df is None or df.empty:
-            return pd.DataFrame(columns=colonnes_base)
-        
-        # Supprime les éventuels espaces invisibles dans les noms de colonnes
-        df.columns = [str(c).strip() for c in df.columns]
-        
-        df = df.dropna(how="all")
+            df = pd.DataFrame(columns=colonnes_base)
+        else:
+            df.columns = [str(c).strip() for c in df.columns]
+            df = df.dropna(how="all")
+
+        # ANTI-BUG PYTHON : On force tout en texte ("string") pour éviter l'erreur TypeError
+        for col in colonnes_base:
+            if col not in df.columns:
+                df[col] = ""
+            else:
+                df[col] = df[col].astype(str).replace('nan', '').replace('None', '')
+                
         df['Date_Epreuve'] = pd.to_datetime(df['Date_Epreuve'], errors='coerce')
-        
         if 'Statut' not in df.columns:
             df['Statut'] = 'Actif'
         else:
             df['Statut'] = df['Statut'].fillna('Actif')
-            
-        # S'assurer de manière agressive que TOUTES les colonnes existent
-        for col in colonnes_base:
-            if col not in df.columns:
-                df[col] = ""
-                
         return df
     except Exception as e:
         return pd.DataFrame(columns=colonnes_base)
@@ -172,20 +128,17 @@ def save_data(df):
         "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"
     ]
     
-    # On revérifie avant de sauvegarder
     for col in colonnes_obligatoires:
         if col not in df_to_save.columns:
             df_to_save[col] = ""
 
-    df_to_save = df_to_save[colonnes_obligatoires]
-    df_to_save = df_to_save.fillna("")
-    df_to_save = df_to_save.astype(str)
+    df_to_save = df_to_save[colonnes_obligatoires].fillna("").astype(str)
     
     try:
         conn.update(worksheet="Data", data=df_to_save)
-        st.cache_data.clear() # On vide le cache immédiatement après l'écriture
+        st.cache_data.clear()
     except Exception as e:
-        st.error(f"Erreur d'écriture Google Sheets : {e}")
+        st.error(f"Erreur d'écriture : {e}")
         st.stop()
 
 # --- CLASSE PDF ---
@@ -438,7 +391,6 @@ def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, est_uaa_finale=
     send_email_wrapper([destinataire], sujet, corps_html, mime_type='html')
 
 # --- UI PRINCIPALE ---
-
 st.set_page_config(page_title="Encodage UAA", page_icon="⚡", layout="wide")
 
 if "authenticated" not in st.session_state:
@@ -498,7 +450,6 @@ else:
         if nom_eleve:
             st.divider()
             
-            # --- AJOUT SÉLECTEUR UAA ---
             uaa_choisie = st.selectbox("Sélectionner l'UAA concernée :", ["UAA 1", "UAA 2"])
             badges_actifs = BADGES_UAA1 if uaa_choisie == "UAA 1" else BADGES_UAA2
             

@@ -64,7 +64,7 @@ IMG_UAA2 = GITHUB_BASE_URL + "logo_UAA2.png"
 BADGES_UAA3 = {
     "UAA3_SI1": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=f8skij&qr=1", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA3_SI1.png"},
     "UAA3_SI2": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=6b4kby&qr=1", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA3_SI2.png"},
-    "UAA3_SI3": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=yy2ipg&qr=1", "nom": "SI3 : Remplacement d'un composant électrique", "img": GITHUB_BASE_URL + "logo_UAA3_SI3.png"},
+    "UAA3_SI3": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=yy2ipg&qr=1", "nom": "SI3 : Remplacement d'un composant pneumatique", "img": GITHUB_BASE_URL + "logo_UAA3_SI3.png"},
     "UAA3_SI4": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=zkwg6f&qr=1", "nom": "SI4 : Remise en service et réglage", "img": GITHUB_BASE_URL + "logo_UAA3_SI4.png"},
     "UAA3_SI5": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=soryyk&qr=1", "nom": "SI5 : Clôture de l'intervention", "img": GITHUB_BASE_URL + "logo_UAA3_SI5.png"}
 }
@@ -263,7 +263,9 @@ def generate_global_pdf(df):
     pdf.ln(10)
 
     df_actifs = df[df["Statut"] != "Archivé"]
-    eleves = df_actifs["Nom_Prenom"].unique()
+    # SECURITE POUR LE TRI: On s'assure que ce sont des textes propres, sans cases vides
+    eleves_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist()
+    eleves = [str(e) for e in eleves_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
     eleves.sort()
 
     for eleve in eleves:
@@ -358,17 +360,17 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
-def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, est_uaa_finale=False):
+def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, nom_uaa, est_uaa_finale=False):
     destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
     
     if est_uaa_finale:
-        sujet = f"🏆 FÉLICITATIONS ! Tu as validé l'intégralité de l'{nom_badge}"
-        label_entete = f"L'intégralité de l'<strong>{nom_badge}</strong> est validée !"
+        sujet = f"🏆 FÉLICITATIONS ! Tu as validé l'intégralité de l'{nom_uaa}"
+        label_entete = f"L'intégralité de l'<strong>{nom_uaa}</strong> est validée !"
         texte_intro = "C'est une étape majeure ! Tu as réussi l'épreuve de validation finale :"
     else:
-        sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge}"
+        sujet = f"🏆 Félicitations ! Vous avez obtenu le badge : {nom_badge} pour l'{nom_uaa}"
         label_entete = f"Félicitations {nom_eleve} !"
-        texte_intro = "Suite à ton évaluation, tu as brillamment obtenu le badge numérique :"
+        texte_intro = f"Suite à ton évaluation, tu as brillamment obtenu une sous-compétence de l'**{nom_uaa}**. Voici ton badge numérique :"
 
     corps_html = f"""
     <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
@@ -443,7 +445,9 @@ else:
 
     df = load_data()
     df_actifs = df[df["Statut"] != "Archivé"]
-    existing_students = df_actifs["Nom_Prenom"].unique().tolist() if not df_actifs.empty else []
+    # SECURITE POUR LE MENU DEROULANT: Nettoyer la liste des élèves pour éviter des erreurs
+    existing_students_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist() if not df_actifs.empty else []
+    existing_students = [str(e) for e in existing_students_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
     existing_students.sort()
 
     if page_actuelle == "📝 Encodage":
@@ -515,7 +519,8 @@ else:
 
                         for b in nouvelles_validations:
                             df.loc[df["Nom_Prenom"] == nom_eleve, b] = "Acquis"
-                            send_badge_email(nom_eleve, badges_actifs[b]['nom'], badges_actifs[b]['url'], badges_actifs[b]['img'])
+                            # Mise à jour: On précise nom_uaa=uaa_choisie dans le mail
+                            send_badge_email(nom_eleve, badges_actifs[b]['nom'], badges_actifs[b]['url'], badges_actifs[b]['img'], nom_uaa=uaa_choisie)
 
                         save_data(df)
                         st.success("✅ Badges enregistrés et emails envoyés ! 🎉")
@@ -580,7 +585,8 @@ else:
                                     else:
                                         lien_final, img_final = LIEN_UAA3, IMG_UAA3
                                         
-                                    send_badge_email(nom_eleve, uaa_choisie, lien_final, img_final, est_uaa_finale=True)
+                                    # Mise à jour: On précise nom_uaa=uaa_choisie pour le badge final
+                                    send_badge_email(nom_eleve, uaa_choisie, lien_final, img_final, nom_uaa=uaa_choisie, est_uaa_finale=True)
 
                                 date_to_save = pd.to_datetime(date_ep)
                                 new_row = {
@@ -716,7 +722,7 @@ else:
 
     elif page_actuelle == "⚙️ Admin":
         st.subheader("⚙️ Administration & Base de Données")
-        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne", "⚠️ Réparer la base (Vider le cache)"], key="admin_action_radio")
+        action = st.radio("Choisissez une action :", ["Renommer un élève", "Archiver", "Restaurer", "Supprimer Ligne"], key="admin_action_radio")
         
         if action == "Renommer un élève":
             if existing_students:
@@ -766,14 +772,4 @@ else:
                 save_data(df)
                 st.success("Ligne supprimée !")
                 time.sleep(1)
-                st.rerun()
-
-        elif action == "⚠️ Réparer la base (Vider le cache)":
-            st.warning("Utilisez ce bouton uniquement si l'application plante lors de l'encodage.")
-            if st.button("Forcer la réparation et vider le cache", type="primary", key="btn_repair_db"):
-                st.cache_data.clear()
-                df_repair = load_data()
-                save_data(df_repair)
-                st.success("✅ Mémoire de l'application vidée. Tout devrait fonctionner à présent !")
-                time.sleep(2)
                 st.rerun()

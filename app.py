@@ -69,6 +69,37 @@ BADGES_UAA1 = {
 LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=hopgck"
 IMG_UAA1 = GITHUB_BASE_URL + "logo_UAA1.png"
 
+# --- BADGES UAA2 ---
+BADGES_UAA2 = {
+    "UAA2_SI1": {
+        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=gjt4f6&qr=1", 
+        "nom": "SI1 : Préparation de l'intervention de maintenance", 
+        "img": GITHUB_BASE_URL + "logo_UAA2_SI1.png"
+    },
+    "UAA2_SI2": {
+        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=6ubf77&qr=1", 
+        "nom": "SI2 : LMRA - Consignation - Déconsignation", 
+        "img": GITHUB_BASE_URL + "logo_UAA2_SI2.png"
+    },
+    "UAA2_SI3": {
+        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=hzvqdn&qr=1", 
+        "nom": "SI3 : Remplacement d'un composant électrique + règles de sécurité / ergonomiques / environnementales", 
+        "img": GITHUB_BASE_URL + "logo_UAA2_SI3.png"
+    },
+    "UAA2_SI4": {
+        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=ott9y2&qr=1", 
+        "nom": "SI4 : Remise en service et réglage", 
+        "img": GITHUB_BASE_URL + "logo_UAA2_SI4.png"
+    },
+    "UAA2_SI5": {
+        "url": "https://www.badgecraft.eu/auto/wallet/claim?code=zts3i9&qr=1", 
+        "nom": "SI5 : Clôture de l'intervention", 
+        "img": GITHUB_BASE_URL + "logo_UAA2_SI5.png"
+    }
+}
+LIEN_UAA2 = "https://www.badgecraft.eu/auto/wallet/claim?code=cqs5p3&qr=1"
+IMG_UAA2 = GITHUB_BASE_URL + "logo_UAA2.png"
+
 # --- FONCTIONS UTILITAIRES ---
 
 def clean_text(text):
@@ -101,7 +132,9 @@ def colorer_lignes(row):
 
 def load_data():
     conn = st.connection("gsheets", type=GSheetsConnection)
-    colonnes_base = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5"]
+    colonnes_base = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
+                     "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
+                     "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"]
     try:
         df = conn.read(worksheet="Data", ttl=0)
         if df.empty:
@@ -112,6 +145,12 @@ def load_data():
             df['Statut'] = 'Actif'
         else:
             df['Statut'] = df['Statut'].fillna('Actif')
+            
+        # S'assurer que les nouvelles colonnes UAA2 existent
+        for col in colonnes_base:
+            if col not in df.columns:
+                df[col] = ""
+                
         return df
     except Exception:
         return pd.DataFrame(columns=colonnes_base)
@@ -119,7 +158,9 @@ def load_data():
 def save_data(df):
     conn = st.connection("gsheets", type=GSheetsConnection)
     df_to_save = df.copy()
-    colonnes_obligatoires = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5"]
+    colonnes_obligatoires = ["Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
+                             "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
+                             "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5"]
     
     for col in colonnes_obligatoires:
         if col not in df_to_save.columns:
@@ -446,23 +487,27 @@ else:
         if nom_eleve:
             st.divider()
             
+            # --- AJOUT SÉLECTEUR UAA ---
+            uaa_choisie = st.selectbox("Sélectionner l'UAA concernée :", ["UAA 1", "UAA 2"])
+            badges_actifs = BADGES_UAA1 if uaa_choisie == "UAA 1" else BADGES_UAA2
+            
             type_saisie = st.radio("Que souhaitez-vous faire ?", ["🥇 Validation de Badges (Prérequis SI)", "🎓 Résultat d'une épreuve (UAA)"], horizontal=True)
 
             if type_saisie == "🥇 Validation de Badges (Prérequis SI)":
-                st.info("Validez ici les sous-compétences (SI) requises avant le passage de l'UAA 1. Un email contenant le lien du badge sera automatiquement envoyé à l'élève.")
+                st.info(f"Validez ici les sous-compétences (SI) requises avant le passage de l'{uaa_choisie}. Un email contenant le lien du badge sera automatiquement envoyé à l'élève.")
                 
                 status = {}
-                for col in BADGES_UAA1.keys():
+                for col in badges_actifs.keys():
                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
                         status[col] = df.loc[df["Nom_Prenom"] == nom_eleve, col].astype(str).str.contains("Acquis").any()
                     else:
                         status[col] = False
 
-                st.write(f"**Badges UAA 1 pour {nom_eleve} :**")
+                st.write(f"**Badges {uaa_choisie} pour {nom_eleve} :**")
                 nouvelles_validations = []
 
                 cols = st.columns(5)
-                for i, (col_badge, info) in enumerate(BADGES_UAA1.items()):
+                for i, (col_badge, info) in enumerate(badges_actifs.items()):
                     with cols[i]:
                         try:
                             st.image(info["img"], width=80)
@@ -482,11 +527,12 @@ else:
                         if df.empty or nom_eleve not in df["Nom_Prenom"].values:
                             new_row = {"Nom_Prenom": nom_eleve, "Classe": "", "Code_UAA": "Profil", "Description_UAA": "Création profil pour badges", "Date_Epreuve": pd.to_datetime(datetime.today()), "Resultat": "", "Statut": "Actif"}
                             for b in BADGES_UAA1.keys(): new_row[b] = ""
+                            for b in BADGES_UAA2.keys(): new_row[b] = ""
                             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
                         for b in nouvelles_validations:
                             df.loc[df["Nom_Prenom"] == nom_eleve, b] = "Acquis"
-                            send_badge_email(nom_eleve, BADGES_UAA1[b]['nom'], BADGES_UAA1[b]['url'], BADGES_UAA1[b]['img'])
+                            send_badge_email(nom_eleve, badges_actifs[b]['nom'], badges_actifs[b]['url'], badges_actifs[b]['img'])
 
                         save_data(df)
                         st.success("✅ Badges enregistrés et emails envoyés ! 🎉")
@@ -495,29 +541,28 @@ else:
 
             elif type_saisie == "🎓 Résultat d'une épreuve (UAA)":
                 c1, c2 = st.columns(2)
-                classe = c1.selectbox("Année", list(PROGRAMME.keys()))
-                codes_uaa = list(PROGRAMME[classe].keys())
-                code_choisi = c2.selectbox("UAA", codes_uaa)
-                desc = PROGRAMME[classe][code_choisi]
+                # Forcer la classe selon l'UAA
+                classe_associee = "4TQEMI" if uaa_choisie == "UAA 1" else "5TQEMI"
+                st.write(f"**Année :** {classe_associee}")
+                desc = PROGRAMME[classe_associee][uaa_choisie]
                 st.info(f"**Compétence visée :** {desc}")
 
                 badges_manquants = False
-                if code_choisi == "UAA 1": 
-                    if mode_eleve == "Existant" and not df.empty and nom_eleve in df["Nom_Prenom"].values:
-                        status_uaa1 = [df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any() for b in BADGES_UAA1.keys()]
-                        if not all(status_uaa1):
-                            badges_manquants = True
-                    else:
+                if mode_eleve == "Existant" and not df.empty and nom_eleve in df["Nom_Prenom"].values:
+                    status_uaa = [df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any() for b in badges_actifs.keys()]
+                    if not all(status_uaa):
                         badges_manquants = True
+                else:
+                    badges_manquants = True
 
                 if badges_manquants:
-                    st.error(f"🔒 Action bloquée : Impossible d'encoder un résultat pour l'{code_choisi}. L'élève **{nom_eleve}** doit d'abord valider tous les badges prérequis de cette UAA.")
+                    st.error(f"🔒 Action bloquée : Impossible d'encoder un résultat pour l'{uaa_choisie}. L'élève **{nom_eleve}** doit d'abord valider tous les badges prérequis de cette UAA.")
                 else:
                     deja_reussi = False
                     date_reussite_str = ""
                     
                     if mode_eleve == "Existant" and not df.empty:
-                        mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == code_choisi) & (df["Resultat"].astype(str).str.contains("Réussite", na=False))
+                        mask = (df["Nom_Prenom"] == nom_eleve) & (df["Code_UAA"] == uaa_choisie) & (df["Resultat"].astype(str).str.contains("Réussite", na=False))
                         df_deja = df[mask]
                         if not df_deja.empty:
                             deja_reussi = True
@@ -527,7 +572,7 @@ else:
                                 date_reussite_str = str(df_deja.iloc[0]["Date_Epreuve"])[:10]
 
                     if deja_reussi:
-                        st.error(f"🔒 Action bloquée : **{nom_eleve}** a déjà validé l'**{code_choisi}** le {date_reussite_str}. Nouvel encodage impossible.")
+                        st.error(f"🔒 Action bloquée : **{nom_eleve}** a déjà validé l'**{uaa_choisie}** le {date_reussite_str}. Nouvel encodage impossible.")
                     else:
                         c3, c4 = st.columns(2)
                         date_ep = c3.date_input("Date de l'épreuve", datetime.today())
@@ -537,15 +582,17 @@ else:
                             if not date_ep:
                                 st.error("❌ Oups ! Veuillez définir une date valide.")
                             else:
-                                # --- ENVOI MAIL BADGE UAA1 FINAL SI RÉUSSITE ---
-                                if code_choisi == "UAA 1" and "Réussite" in res:
-                                    send_badge_email(nom_eleve, "UAA 1", LIEN_UAA1, IMG_UAA1, est_uaa_finale=True)
+                                # --- ENVOI MAIL BADGE UAA FINAL SI RÉUSSITE ---
+                                if "Réussite" in res:
+                                    lien_final = LIEN_UAA1 if uaa_choisie == "UAA 1" else LIEN_UAA2
+                                    img_final = IMG_UAA1 if uaa_choisie == "UAA 1" else IMG_UAA2
+                                    send_badge_email(nom_eleve, uaa_choisie, lien_final, img_final, est_uaa_finale=True)
 
                                 date_to_save = pd.to_datetime(date_ep)
                                 new_row = {
                                     "Nom_Prenom": nom_eleve, 
-                                    "Classe": classe, 
-                                    "Code_UAA": code_choisi, 
+                                    "Classe": classe_associee, 
+                                    "Code_UAA": uaa_choisie, 
                                     "Description_UAA": desc, 
                                     "Date_Epreuve": date_to_save, 
                                     "Resultat": res,
@@ -553,7 +600,9 @@ else:
                                 }
                                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                                 
-                                for b in BADGES_UAA1.keys():
+                                # Recopier les badges acquis sur la nouvelle ligne pour l'historique
+                                toutes_cles_badges = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys())
+                                for b in toutes_cles_badges:
                                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
                                         if df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any():
                                             df.loc[df.index[-1], b] = "Acquis"

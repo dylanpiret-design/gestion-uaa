@@ -359,7 +359,7 @@ def generate_global_pdf(df):
     if nouvelles_evals_existent:
         pdf.set_font("Arial", 'B', 10)
         pdf.set_fill_color(255, 230, 200)
-        pdf.cell(0, 7, clean_text("📌 RÉCAPITULATIF DES NOUVELLES ÉVALUATIONS À ENCODER"), 1, 1, 'L', 1)
+        pdf.cell(0, 7, clean_text("RÉCAPITULATIF DES NOUVELLES ÉVALUATIONS À ENCODER"), 1, 1, 'L', 1)
         pdf.set_font("Arial", 'B', 8)
         pdf.set_fill_color(240, 240, 240)
         

@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
 from fpdf import FPDF
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -41,11 +41,10 @@ PROGRAMME = {
     }
 }
 
-# --- BADGE ULTIME (CQ6) ---
+# --- BADGES ---
 LIEN_CQ6 = "https://www.badgecraft.eu/fr/wallet/claim?code=orshwd"
 IMG_CQ6 = GITHUB_BASE_URL + "logo_cq6.png"
 
-# --- BADGES UAA1 ---
 BADGES_UAA1 = {
     "UAA1_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bvcshf", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA1_SI1.png"},
     "UAA1_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=7kisig", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA1_SI2.png"},
@@ -56,7 +55,6 @@ BADGES_UAA1 = {
 LIEN_UAA1 = "https://www.badgecraft.eu/fr/wallet/claim?code=h5vr9v"
 IMG_UAA1 = GITHUB_BASE_URL + "logo_UAA1.png"
 
-# --- BADGES UAA2 ---
 BADGES_UAA2 = {
     "UAA2_SI1": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=gjt4f6&qr=1", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA2_SI1.png"},
     "UAA2_SI2": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=6ubf77&qr=1", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA2_SI2.png"},
@@ -67,7 +65,6 @@ BADGES_UAA2 = {
 LIEN_UAA2 = "https://www.badgecraft.eu/auto/wallet/claim?code=cqs5p3&qr=1"
 IMG_UAA2 = GITHUB_BASE_URL + "logo_UAA2.png"
 
-# --- BADGES UAA3 ---
 BADGES_UAA3 = {
     "UAA3_SI1": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=f8skij&qr=1", "nom": "SI1 : Préparation de l'intervention de maintenance", "img": GITHUB_BASE_URL + "logo_UAA3_SI1.png"},
     "UAA3_SI2": {"url": "https://www.badgecraft.eu/auto/wallet/claim?code=6b4kby&qr=1", "nom": "SI2 : LMRA - Consignation - Déconsignation", "img": GITHUB_BASE_URL + "logo_UAA3_SI2.png"},
@@ -78,7 +75,6 @@ BADGES_UAA3 = {
 LIEN_UAA3 = "https://www.badgecraft.eu/auto/wallet/claim?code=t25p9z&qr=1"
 IMG_UAA3 = GITHUB_BASE_URL + "logo_UAA3.png"
 
-# --- BADGES UAA4 ---
 BADGES_UAA4 = {
     "UAA4_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=fp4m3q", "nom": "SI1 : Analyse & Dessin EPlan", "img": GITHUB_BASE_URL + "logo_UAA4_SI1.png"},
     "UAA4_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8ha5uq", "nom": "SI2 : Consignation & Façonnage", "img": GITHUB_BASE_URL + "logo_UAA4_SI2.png"},
@@ -88,7 +84,6 @@ BADGES_UAA4 = {
 LIEN_UAA4 = "https://www.badgecraft.eu/fr/wallet/claim?code=76u7uh"
 IMG_UAA4 = GITHUB_BASE_URL + "logo_UAA4.png"
 
-# --- BADGES UAA5 ---
 BADGES_UAA5 = {
     "UAA5_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=z8jhak", "nom": "SI1 : Préparation & Consignation", "img": GITHUB_BASE_URL + "logo_UAA5_SI1.png"},
     "UAA5_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=85g6nr", "nom": "SI2 : Nettoyage, Resserrage & Lubrification", "img": GITHUB_BASE_URL + "logo_UAA5_SI2.png"},
@@ -98,7 +93,6 @@ BADGES_UAA5 = {
 LIEN_UAA5 = "https://www.badgecraft.eu/fr/wallet/claim?code=qda9o7"
 IMG_UAA5 = GITHUB_BASE_URL + "logo_UAA5.png"
 
-# --- BADGES UAA6 ---
 BADGES_UAA6 = {
     "UAA6_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bev7mg", "nom": "SI1 : Enquête & Connexion TIA Portal", "img": GITHUB_BASE_URL + "logo_UAA6_SI1.png"},
     "UAA6_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8ttann", "nom": "SI2 : Schémas & Recherche méthodique", "img": GITHUB_BASE_URL + "logo_UAA6_SI2.png"},
@@ -135,6 +129,30 @@ def colorer_lignes(row):
     elif 'Echec' in str(row['Resultat']):
         return ['background-color: #f8d7da; color: #721c24'] * len(row)
     return [''] * len(row)
+
+# --- CALCUL AUTOMATIQUE DE LA PERIODE D'ENCODAGE ---
+def get_periode_automatique():
+    today = datetime.now().date()
+    year = today.year
+    month = today.month
+    day = today.day
+
+    # Période 1 : Entre le 1er Septembre et le 15 Janvier
+    if (month == 9) or (month > 9) or (month == 1 and day <= 15):
+        start_year = year - 1 if (month == 1 and day <= 15) else year
+        start_date = date(start_year, 9, 1)
+        nom_periode = "Semestre 1 (Rentrée -> Janvier)"
+    # Période 2 : Entre le 16 Janvier et le 15 Juillet
+    elif (month == 1 and day > 15) or (1 < month < 7) or (month == 7 and day <= 15):
+        start_date = date(year, 1, 16)
+        nom_periode = "Semestre 2 (Janvier -> Juin/Juillet)"
+    # Période d'été / Seconde session (16 Juillet -> 31 Août)
+    else:
+        start_date = date(year, 1, 16)
+        nom_periode = "Seconde Session / Session d'été"
+
+    end_date = today
+    return start_date, end_date, nom_periode
 
 # --- GESTION DES DONNÉES GOOGLE SHEETS ---
 def load_data():
@@ -227,7 +245,7 @@ class PDF(FPDF):
         self.set_font("Arial", 'I', 8)
         self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-# --- GÉNÉRATION PDF ---
+# --- GÉNÉRATION PDF INDIVIDUEL ---
 def generate_pdf(nom_eleve, df_eleve_filtered):
     pdf = PDF()
     pdf.alias_nb_pages()
@@ -291,7 +309,10 @@ def generate_pdf(nom_eleve, df_eleve_filtered):
     
     return pdf.output(dest='S').encode('latin-1')
 
+# --- GÉNÉRATION PDF GLOBAL (SURLIGNAGE AUTOMATIQUE) ---
 def generate_global_pdf(df):
+    start_date, end_date, nom_periode = get_periode_automatique()
+    
     pdf = PDF()
     pdf.alias_nb_pages()
     pdf.add_page()
@@ -301,15 +322,69 @@ def generate_global_pdf(df):
     pdf.cell(0, 10, clean_text("Rapport Global - Situation des Élèves"), ln=True, align='C')
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 8, clean_text(NOM_OPTION), ln=True, align='C')
-    pdf.set_font("Arial", 'I', 10)
-    pdf.cell(0, 10, clean_text(f"Généré le : {datetime.now().strftime('%d/%m/%Y')}"), ln=True, align='C')
-    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 9)
+    
+    txt_periode = f"Période active : {nom_periode} (du {start_date.strftime('%d/%m/%Y')} au {end_date.strftime('%d/%m/%Y')})"
+    pdf.cell(0, 6, clean_text(txt_periode), ln=True, align='C')
+    pdf.ln(4)
+
+    # --- LÉGENDE DE DÉTECTION ---
+    pdf.set_font("Arial", 'B', 8)
+    pdf.set_fill_color(255, 235, 156) # Jaune
+    pdf.cell(32, 5, clean_text(" [Nouv.] ACQUIS "), 1, 0, 'C', 1)
+    pdf.set_fill_color(255, 204, 204) # Rouge clair
+    pdf.cell(32, 5, clean_text(" [Nouv.] ECHEC "), 1, 0, 'C', 1)
+    pdf.set_font("Arial", '', 8)
+    pdf.cell(0, 5, clean_text(" = Évaluations passées pendant la période active à encoder"), 0, 1, 'L')
+    pdf.ln(4)
 
     df_actifs = df[df["Statut"] != "Archivé"]
     eleves_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist()
-    eleves = [str(e) for e in eleves_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
+    eleves = [str(e) for e in eleves_bruts if str(e).strip() != "" and str(e].lower() != "nan"]
     eleves.sort()
 
+    # --- PAGE DE GARDE / RÉCAPITULATIF EXPRESS ---
+    nouvelles_evals_existent = False
+    recap_lignes = []
+
+    for eleve in eleves:
+        sub_df = get_latest_results(df[df["Nom_Prenom"] == eleve])
+        for _, r in sub_df.iterrows():
+            date_ep = pd.to_datetime(r['Date_Epreuve'], errors='coerce')
+            if date_ep and start_date <= date_ep.date() <= end_date:
+                nouvelles_evals_existent = True
+                res_txt = "ACQUIS" if "Réussite" in str(r['Resultat']) else "NON ACQUIS"
+                recap_lignes.append((eleve, r['Classe'], r['Code_UAA'], res_txt, date_ep.strftime('%d/%m/%Y')))
+
+    if nouvelles_evals_existent:
+        pdf.set_font("Arial", 'B', 10)
+        pdf.set_fill_color(255, 230, 200)
+        pdf.cell(0, 7, clean_text("📌 RÉCAPITULATIF DES NOUVELLES ÉVALUATIONS À ENCODER"), 1, 1, 'L', 1)
+        pdf.set_font("Arial", 'B', 8)
+        pdf.set_fill_color(240, 240, 240)
+        
+        pdf.cell(60, 6, clean_text("Élève"), 1, 0, 'C', 1)
+        pdf.cell(20, 6, clean_text("Classe"), 1, 0, 'C', 1)
+        pdf.cell(25, 6, clean_text("UAA"), 1, 0, 'C', 1)
+        pdf.cell(30, 6, clean_text("Résultat"), 1, 0, 'C', 1)
+        pdf.cell(25, 6, clean_text("Date Épreuve"), 1, 1, 'C', 1)
+        
+        pdf.set_font("Arial", '', 8)
+        for el, cl, uaa, res_t, d in recap_lignes:
+            pdf.cell(60, 5, clean_text(el), 1, 0, 'L')
+            pdf.cell(20, 5, clean_text(str(cl)[:3]), 1, 0, 'C')
+            pdf.cell(25, 5, clean_text(uaa), 1, 0, 'C')
+            
+            if res_t == "ACQUIS":
+                pdf.set_text_color(0, 128, 0)
+            else:
+                pdf.set_text_color(200, 0, 0)
+            pdf.cell(30, 5, clean_text(res_t), 1, 0, 'C')
+            pdf.set_text_color(0, 0, 0)
+            pdf.cell(25, 5, d, 1, 1, 'C')
+        pdf.ln(6)
+
+    # --- DÉTAIL PAR ÉLÈVE ---
     for eleve in eleves:
         if pdf.get_y() > 220:
             pdf.add_page()
@@ -325,20 +400,20 @@ def generate_global_pdf(df):
             titre_eleve = f"Élève : {eleve}"
             pdf.set_fill_color(220, 230, 255) 
         
-        pdf.set_font("Arial", 'B', 12)
+        pdf.set_font("Arial", 'B', 11)
         pdf.set_text_color(0, 0, 0)
-        pdf.cell(0, 8, clean_text(titre_eleve), 1, 1, 'L', 1)
+        pdf.cell(0, 7, clean_text(titre_eleve), 1, 1, 'L', 1)
         
         if sub_df.empty:
-            pdf.set_font("Arial", 'I', 10)
-            pdf.cell(0, 8, clean_text("Aucun résultat encodé."), 1, 1)
+            pdf.set_font("Arial", 'I', 9)
+            pdf.cell(0, 6, clean_text("Aucun résultat encodé."), 1, 1)
         else:
-            pdf.set_font("Arial", 'B', 9)
+            pdf.set_font("Arial", 'B', 8)
             pdf.set_fill_color(240, 240, 240)
             
-            col_w = [18, 17, 110, 25, 20] 
+            col_w = [18, 17, 100, 35, 20] 
             
-            headers = ["Classe", "UAA", "Description", "Resultat", "Date"]
+            headers = ["Classe", "UAA", "Description", "Resultat / Statut", "Date"]
             for i, h in enumerate(headers):
                 pdf.cell(col_w[i], 6, clean_text(h), 1, 0, 'C', 1)
             pdf.ln()
@@ -346,31 +421,53 @@ def generate_global_pdf(df):
             pdf.set_font("Arial", '', 8)
             for _, row in sub_df.iterrows():
                 desc = clean_text(row['Description_UAA'])
-                if len(desc) > 65: desc = desc[:65] + "..."
+                if len(desc) > 60: desc = desc[:60] + "..."
                 
                 res_brut = str(row['Resultat'])
+                date_ep = pd.to_datetime(row['Date_Epreuve'], errors='coerce')
+                
+                est_recent = False
+                if date_ep and start_date <= date_ep.date() <= end_date:
+                    est_recent = True
+
                 if "Réussite" in res_brut:
-                    res_court = "ACQUIS"
-                    color = (0, 128, 0)
+                    if est_recent:
+                        res_court = " [Nouv.] ACQUIS "
+                        color = (110, 80, 0)
+                        bg_color = (255, 235, 156) # Surligné Jaune
+                    else:
+                        res_court = "ACQUIS"
+                        color = (0, 100, 0)
+                        bg_color = (255, 255, 255)
                 else:
-                    res_court = "NON ACQUIS"
-                    color = (200, 0, 0)
+                    if est_recent:
+                        res_court = " [Nouv.] ECHEC "
+                        color = (150, 0, 0)
+                        bg_color = (255, 204, 204) # Surligné Rouge clair
+                    else:
+                        res_court = "NON ACQUIS"
+                        color = (150, 0, 0)
+                        bg_color = (255, 255, 255)
 
                 try:
-                    d_str = row['Date_Epreuve'].strftime('%d/%m/%Y')
+                    d_str = date_ep.strftime('%d/%m/%Y')
                 except:
                     d_str = str(row['Date_Epreuve'])[:10]
 
                 pdf.cell(col_w[0], 6, clean_text(str(row['Classe'])[:3]), 1, 0, 'C')
                 pdf.cell(col_w[1], 6, clean_text(row['Code_UAA']), 1, 0, 'C')
                 pdf.cell(col_w[2], 6, desc, 1)
+                
+                # Application du surlignage dynamique
                 pdf.set_text_color(*color)
                 pdf.set_font("Arial", 'B', 8)
-                pdf.cell(col_w[3], 6, clean_text(res_court), 1, 0, 'C')
+                pdf.set_fill_color(*bg_color)
+                pdf.cell(col_w[3], 6, clean_text(res_court), 1, 0, 'C', fill=est_recent)
+                
                 pdf.set_text_color(0, 0, 0)
                 pdf.set_font("Arial", '', 8)
                 pdf.cell(col_w[4], 6, d_str, 1, 1, 'C')
-            pdf.ln(5) 
+            pdf.ln(4) 
     return pdf.output(dest='S').encode('latin-1')
 
 # --- MAIL ---
@@ -512,7 +609,6 @@ else:
         if nom_eleve:
             st.divider()
             
-            # --- MENU AVEC UAA 1 à 6 ---
             uaa_choisie = st.selectbox("Sélectionner l'UAA concernée :", ["UAA 1", "UAA 2", "UAA 3", "UAA 4", "UAA 5", "UAA 6"])
             
             if uaa_choisie == "UAA 1": badges_actifs = BADGES_UAA1
@@ -571,9 +667,6 @@ else:
                         st.rerun()
 
             elif type_saisie == "🎓 Résultat d'une épreuve (UAA)":
-                c1, c2 = st.columns(2)
-                
-                # Affectation des classes selon le programme
                 if uaa_choisie == "UAA 1":
                     classe_associee = "4TQEMI"
                 elif uaa_choisie in ["UAA 2", "UAA 3"]:
@@ -655,7 +748,6 @@ else:
                                 if reussites_eleve["Code_UAA"].nunique() >= 6:
                                     st.balloons()
                                     st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
-                                    # Envoi automatique du badge Ultime CQ6
                                     send_badge_email(nom_eleve, "Certificat de Qualification (CQ6)", LIEN_CQ6, IMG_CQ6, est_cq6=True)
                                     time.sleep(3)
                                 else:
@@ -760,12 +852,25 @@ else:
 
         st.divider()
         st.subheader("2. Rapport Global")
+        
+        # --- AFFICHER AUTOMATIQUEMENT LA PERIODE DETECTEE ---
+        start_d, end_d, nom_p = get_periode_automatique()
+        
+        st.info(f"""
+        🤖 **Surlignage Automatique Intelligent Activé**  
+        * **Période active détectée :** `{nom_p}`  
+        * **Plage de dates :** du **{start_d.strftime('%d/%m/%Y')}** au **{end_d.strftime('%d/%m/%Y')}**  
+        
+        Toutes les nouvelles évaluations (réussites ou échecs) encodées dans cette fenêtre seront **surlignées** sur le PDF global pour simplifier le travail de la secrétaire.
+        """)
+
         df_pdf_global = df[~df["Code_UAA"].str.contains("Profil", na=False)]
         pdf_global_bytes = generate_global_pdf(df_pdf_global)
+        
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
 
         st.write("---")
-        st.write("**📧 Envoi groupé (Équipe pédagogique)**")
+        st.write("**📧 Envoi groupé (Équipe pédagogique / Secrétariat)**")
         
         if "mails_preencodes" not in st.session_state:
             st.session_state.mails_preencodes = ""
@@ -776,7 +881,7 @@ else:
         liste_mails_editables = st.text_area(
             "Modifier ou compléter les adresses (séparées par une virgule) :",
             value=st.session_state.mails_preencodes,
-            placeholder="prof1@ecole.be, prof2@ecole.be..."
+            placeholder="prof1@ecole.be, secretaire@ecole.be..."
         )
 
         if st.button("🚀 Confirmer l'envoi au groupe", type="primary"):
@@ -785,7 +890,7 @@ else:
             else:
                 dest_list = [m.strip() for m in liste_mails_editables.replace(';', ',').split(',') if m.strip()]
                 sujet_p = f"Rapport Global UAA - {NOM_OPTION}"
-                corps_p = f"Bonjour,\n\nVeuillez trouver en pièce jointe la situation globale des UAA pour l'option {NOM_OPTION}."
+                corps_p = f"Bonjour,\n\nVeuillez trouver en pièce jointe la situation globale des UAA pour l'option {NOM_OPTION}.\n\nLes évaluations récentes ({nom_p}) sont surlignées pour faciliter l'encodage par le secrétariat."
                 if send_email_wrapper(dest_list, sujet_p, corps_p, pdf_global_bytes, "Rapport_Global_EMI.pdf"):
                     st.success(f"✅ Rapport envoyé avec succès aux {len(dest_list)} adresses.")
 

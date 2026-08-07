@@ -17,7 +17,7 @@ NOM_OPTION = "Electricien(ne) de maintenance industrielle"
 DOMAIN_ECOLE = "@cnddinant.be"
 LOGO_PATH = "logo.png"
 
-# NOUVEAU : Liste des professeurs pour le pré-encodage
+# Liste des professeurs pour le pré-encodage
 MAILS_PROFS_DEFAUT = "fabian.polet@cnddinant.be, leslie.hubot@cnddinant.be, francois.leclercq@cnddinant.be, dylan.piret@cnddinant.be"
 
 # Configuration GitHub automatique pour les images des badges
@@ -40,6 +40,10 @@ PROGRAMME = {
         "UAA 6": "Diagnostiquer un dysfonctionnement sur la partie électrique, hydraulique et pneumatique d’une installation pluritechnologique"
     }
 }
+
+# --- BADGE ULTIME (CQ6) ---
+LIEN_CQ6 = "https://www.badgecraft.eu/fr/wallet/claim?code=orshwd"
+IMG_CQ6 = GITHUB_BASE_URL + "logo_cq6.png"
 
 # --- BADGES UAA1 ---
 BADGES_UAA1 = {
@@ -73,6 +77,37 @@ BADGES_UAA3 = {
 }
 LIEN_UAA3 = "https://www.badgecraft.eu/auto/wallet/claim?code=t25p9z&qr=1"
 IMG_UAA3 = GITHUB_BASE_URL + "logo_UAA3.png"
+
+# --- BADGES UAA4 ---
+BADGES_UAA4 = {
+    "UAA4_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=fp4m3q", "nom": "SI1 : Analyse & Dessin EPlan", "img": GITHUB_BASE_URL + "logo_UAA4_SI1.png"},
+    "UAA4_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8ha5uq", "nom": "SI2 : Consignation & Façonnage", "img": GITHUB_BASE_URL + "logo_UAA4_SI2.png"},
+    "UAA4_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=ushcfe", "nom": "SI3 : Câblage & Raccordement", "img": GITHUB_BASE_URL + "logo_UAA4_SI3.png"},
+    "UAA4_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=qpujrb", "nom": "SI4 : Prog. TIA Portal, Essais & As-Built", "img": GITHUB_BASE_URL + "logo_UAA4_SI4.png"}
+}
+LIEN_UAA4 = "https://www.badgecraft.eu/fr/wallet/claim?code=76u7uh"
+IMG_UAA4 = GITHUB_BASE_URL + "logo_UAA4.png"
+
+# --- BADGES UAA5 ---
+BADGES_UAA5 = {
+    "UAA5_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=z8jhak", "nom": "SI1 : Préparation & Consignation", "img": GITHUB_BASE_URL + "logo_UAA5_SI1.png"},
+    "UAA5_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=85g6nr", "nom": "SI2 : Nettoyage, Resserrage & Lubrification", "img": GITHUB_BASE_URL + "logo_UAA5_SI2.png"},
+    "UAA5_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=eubsmt", "nom": "SI3 : Relevés de mesures & Tests sécurité", "img": GITHUB_BASE_URL + "logo_UAA5_SI3.png"},
+    "UAA5_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=s6hbs8", "nom": "SI4 : Détection d'anomalies & GMAO", "img": GITHUB_BASE_URL + "logo_UAA5_SI4.png"}
+}
+LIEN_UAA5 = "https://www.badgecraft.eu/fr/wallet/claim?code=qda9o7"
+IMG_UAA5 = GITHUB_BASE_URL + "logo_UAA5.png"
+
+# --- BADGES UAA6 ---
+BADGES_UAA6 = {
+    "UAA6_SI1": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=bev7mg", "nom": "SI1 : Enquête & Connexion TIA Portal", "img": GITHUB_BASE_URL + "logo_UAA6_SI1.png"},
+    "UAA6_SI2": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=8ttann", "nom": "SI2 : Schémas & Recherche méthodique", "img": GITHUB_BASE_URL + "logo_UAA6_SI2.png"},
+    "UAA6_SI3": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=g8oqte", "nom": "SI3 : Prise de mesures & Pièce HS", "img": GITHUB_BASE_URL + "logo_UAA6_SI3.png"},
+    "UAA6_SI4": {"url": "https://www.badgecraft.eu/fr/wallet/claim?code=byy6y5", "nom": "SI4 : Décision & Rapport d'intervention", "img": GITHUB_BASE_URL + "logo_UAA6_SI4.png"}
+}
+LIEN_UAA6 = "https://www.badgecraft.eu/fr/wallet/claim?code=azcfks"
+IMG_UAA6 = GITHUB_BASE_URL + "logo_UAA6.png"
+
 
 # --- FONCTIONS UTILITAIRES ---
 def clean_text(text):
@@ -108,7 +143,10 @@ def load_data():
         "Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
         "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
         "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5",
-        "UAA3_SI1", "UAA3_SI2", "UAA3_SI3", "UAA3_SI4", "UAA3_SI5"
+        "UAA3_SI1", "UAA3_SI2", "UAA3_SI3", "UAA3_SI4", "UAA3_SI5",
+        "UAA4_SI1", "UAA4_SI2", "UAA4_SI3", "UAA4_SI4",
+        "UAA5_SI1", "UAA5_SI2", "UAA5_SI3", "UAA5_SI4",
+        "UAA6_SI1", "UAA6_SI2", "UAA6_SI3", "UAA6_SI4"
     ]
     try:
         df = conn.read(worksheet="Data", ttl=0)
@@ -118,7 +156,6 @@ def load_data():
             df.columns = [str(c).strip() for c in df.columns]
             df = df.dropna(how="all")
 
-        # ANTI-BUG PYTHON : On force tout en texte ("string") pour éviter l'erreur TypeError
         for col in colonnes_base:
             if col not in df.columns:
                 df[col] = ""
@@ -141,7 +178,10 @@ def save_data(df):
         "Nom_Prenom", "Classe", "Code_UAA", "Description_UAA", "Date_Epreuve", "Resultat", "Statut", 
         "UAA1_SI1", "UAA1_SI2", "UAA1_SI3", "UAA1_SI4", "UAA1_SI5",
         "UAA2_SI1", "UAA2_SI2", "UAA2_SI3", "UAA2_SI4", "UAA2_SI5",
-        "UAA3_SI1", "UAA3_SI2", "UAA3_SI3", "UAA3_SI4", "UAA3_SI5"
+        "UAA3_SI1", "UAA3_SI2", "UAA3_SI3", "UAA3_SI4", "UAA3_SI5",
+        "UAA4_SI1", "UAA4_SI2", "UAA4_SI3", "UAA4_SI4",
+        "UAA5_SI1", "UAA5_SI2", "UAA5_SI3", "UAA5_SI4",
+        "UAA6_SI1", "UAA6_SI2", "UAA6_SI3", "UAA6_SI4"
     ]
     
     for col in colonnes_obligatoires:
@@ -266,7 +306,6 @@ def generate_global_pdf(df):
     pdf.ln(10)
 
     df_actifs = df[df["Statut"] != "Archivé"]
-    # SECURITE POUR LE TRI: On s'assure que ce sont des textes propres, sans cases vides
     eleves_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist()
     eleves = [str(e) for e in eleves_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
     eleves.sort()
@@ -363,10 +402,14 @@ def send_email_wrapper(destinataires_list, sujet, corps, pdf_bytes=None, pdf_nam
         st.error(f"Erreur d'envoi mail (Vérifier secrets) : {e}")
         return False
 
-def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, nom_uaa, est_uaa_finale=False):
+def send_badge_email(nom_eleve, nom_badge, url_badge, img_badge, nom_uaa="", est_uaa_finale=False, est_cq6=False):
     destinataire = normalize_email_text(nom_eleve) + DOMAIN_ECOLE
     
-    if est_uaa_finale:
+    if est_cq6:
+        sujet = "🎓 FÉLICITATIONS ! Tu as obtenu ton Certificat de Qualification (CQ6) !"
+        label_entete = "L'aboutissement de ta formation : Le CQ6 !"
+        texte_intro = "Tu as validé avec succès l'ensemble de tes 6 UAA. Tu deviens officiellement <strong>Electricien(ne) de maintenance industrielle</strong>. Voici ton badge ultime :"
+    elif est_uaa_finale:
         sujet = f"🏆 FÉLICITATIONS ! Tu as validé l'intégralité de l'{nom_uaa}"
         label_entete = f"L'intégralité de l'<strong>{nom_uaa}</strong> est validée !"
         texte_intro = "C'est une étape majeure ! Tu as réussi l'épreuve de validation finale :"
@@ -448,7 +491,6 @@ else:
 
     df = load_data()
     df_actifs = df[df["Statut"] != "Archivé"]
-    # SECURITE POUR LE MENU DEROULANT: Nettoyer la liste des élèves pour éviter des erreurs
     existing_students_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist() if not df_actifs.empty else []
     existing_students = [str(e) for e in existing_students_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
     existing_students.sort()
@@ -470,15 +512,15 @@ else:
         if nom_eleve:
             st.divider()
             
-            # --- MENU AVEC UAA 1, 2 ET 3 ---
-            uaa_choisie = st.selectbox("Sélectionner l'UAA concernée :", ["UAA 1", "UAA 2", "UAA 3"])
+            # --- MENU AVEC UAA 1 à 6 ---
+            uaa_choisie = st.selectbox("Sélectionner l'UAA concernée :", ["UAA 1", "UAA 2", "UAA 3", "UAA 4", "UAA 5", "UAA 6"])
             
-            if uaa_choisie == "UAA 1":
-                badges_actifs = BADGES_UAA1
-            elif uaa_choisie == "UAA 2":
-                badges_actifs = BADGES_UAA2
-            else:
-                badges_actifs = BADGES_UAA3
+            if uaa_choisie == "UAA 1": badges_actifs = BADGES_UAA1
+            elif uaa_choisie == "UAA 2": badges_actifs = BADGES_UAA2
+            elif uaa_choisie == "UAA 3": badges_actifs = BADGES_UAA3
+            elif uaa_choisie == "UAA 4": badges_actifs = BADGES_UAA4
+            elif uaa_choisie == "UAA 5": badges_actifs = BADGES_UAA5
+            else: badges_actifs = BADGES_UAA6
             
             type_saisie = st.radio("Que souhaitez-vous faire ?", ["🥇 Validation de Badges (Prérequis SI)", "🎓 Résultat d'une épreuve (UAA)"], horizontal=True)
 
@@ -495,7 +537,7 @@ else:
                 st.write(f"**Badges {uaa_choisie} pour {nom_eleve} :**")
                 nouvelles_validations = []
 
-                cols = st.columns(5)
+                cols = st.columns(len(badges_actifs))
                 for i, (col_badge, info) in enumerate(badges_actifs.items()):
                     with cols[i]:
                         try:
@@ -515,14 +557,12 @@ else:
                     if st.button("💾 Enregistrer et envoyer les badges", type="primary"):
                         if df.empty or nom_eleve not in df["Nom_Prenom"].values:
                             new_row = {"Nom_Prenom": nom_eleve, "Classe": "", "Code_UAA": "Profil", "Description_UAA": "Création profil pour badges", "Date_Epreuve": pd.to_datetime(datetime.today()), "Resultat": "", "Statut": "Actif"}
-                            for b in BADGES_UAA1.keys(): new_row[b] = ""
-                            for b in BADGES_UAA2.keys(): new_row[b] = ""
-                            for b in BADGES_UAA3.keys(): new_row[b] = ""
+                            toutes_cles = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys()) + list(BADGES_UAA3.keys()) + list(BADGES_UAA4.keys()) + list(BADGES_UAA5.keys()) + list(BADGES_UAA6.keys())
+                            for b in toutes_cles: new_row[b] = ""
                             df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
                         for b in nouvelles_validations:
                             df.loc[df["Nom_Prenom"] == nom_eleve, b] = "Acquis"
-                            # Mise à jour: On précise nom_uaa=uaa_choisie dans le mail
                             send_badge_email(nom_eleve, badges_actifs[b]['nom'], badges_actifs[b]['url'], badges_actifs[b]['img'], nom_uaa=uaa_choisie)
 
                         save_data(df)
@@ -581,14 +621,13 @@ else:
                                 st.error("❌ Oups ! Veuillez définir une date valide.")
                             else:
                                 if "Réussite" in res:
-                                    if uaa_choisie == "UAA 1":
-                                        lien_final, img_final = LIEN_UAA1, IMG_UAA1
-                                    elif uaa_choisie == "UAA 2":
-                                        lien_final, img_final = LIEN_UAA2, IMG_UAA2
-                                    else:
-                                        lien_final, img_final = LIEN_UAA3, IMG_UAA3
+                                    if uaa_choisie == "UAA 1": lien_final, img_final = LIEN_UAA1, IMG_UAA1
+                                    elif uaa_choisie == "UAA 2": lien_final, img_final = LIEN_UAA2, IMG_UAA2
+                                    elif uaa_choisie == "UAA 3": lien_final, img_final = LIEN_UAA3, IMG_UAA3
+                                    elif uaa_choisie == "UAA 4": lien_final, img_final = LIEN_UAA4, IMG_UAA4
+                                    elif uaa_choisie == "UAA 5": lien_final, img_final = LIEN_UAA5, IMG_UAA5
+                                    else: lien_final, img_final = LIEN_UAA6, IMG_UAA6
                                         
-                                    # Mise à jour: On précise nom_uaa=uaa_choisie pour le badge final
                                     send_badge_email(nom_eleve, uaa_choisie, lien_final, img_final, nom_uaa=uaa_choisie, est_uaa_finale=True)
 
                                 date_to_save = pd.to_datetime(date_ep)
@@ -603,7 +642,7 @@ else:
                                 }
                                 df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                                 
-                                toutes_cles_badges = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys()) + list(BADGES_UAA3.keys())
+                                toutes_cles_badges = list(BADGES_UAA1.keys()) + list(BADGES_UAA2.keys()) + list(BADGES_UAA3.keys()) + list(BADGES_UAA4.keys()) + list(BADGES_UAA5.keys()) + list(BADGES_UAA6.keys())
                                 for b in toutes_cles_badges:
                                     if not df.empty and nom_eleve in df["Nom_Prenom"].values:
                                         if df.loc[df["Nom_Prenom"] == nom_eleve, b].astype(str).str.contains("Acquis").any():
@@ -616,6 +655,8 @@ else:
                                 if reussites_eleve["Code_UAA"].nunique() >= 6:
                                     st.balloons()
                                     st.success(f"🎓 FÉLICITATIONS ! L'élève {nom_eleve} a validé ses 6 UAA et obtient son Certificat de Qualification !")
+                                    # Envoi automatique du badge Ultime CQ6
+                                    send_badge_email(nom_eleve, "Certificat de Qualification (CQ6)", LIEN_CQ6, IMG_CQ6, est_cq6=True)
                                     time.sleep(3)
                                 else:
                                     st.success(f"✅ Résultat ajouté pour {nom_eleve} !")
@@ -723,7 +764,6 @@ else:
         pdf_global_bytes = generate_global_pdf(df_pdf_global)
         st.download_button("⬇️ Télécharger PDF Global", pdf_global_bytes, "Rapport_Global.pdf", "application/pdf", key="dl_pdf_global")
 
-        # --- NOUVEAU : SYSTÈME DE PRÉ-ENCODAGE DES MAILS (BULLETINS) ---
         st.write("---")
         st.write("**📧 Envoi groupé (Équipe pédagogique)**")
         

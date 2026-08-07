@@ -340,7 +340,7 @@ def generate_global_pdf(df):
 
     df_actifs = df[df["Statut"] != "Archivé"]
     eleves_bruts = df_actifs["Nom_Prenom"].dropna().unique().tolist()
-    eleves = [str(e) for e in eleves_bruts if str(e).strip() != "" and str(e].lower() != "nan"]
+    eleves = [str(e) for e in eleves_bruts if str(e).strip() != "" and str(e).lower() != "nan"]
     eleves.sort()
 
     # --- PAGE DE GARDE / RÉCAPITULATIF EXPRESS ---
